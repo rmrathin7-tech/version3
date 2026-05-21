@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Statement Analysis - Redwood</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/bsa.css">
+</head>
+<body class="bsa-view">
+    
+    <div id="toast-container"></div>
+
+    <div class="bsa-layout">
+
+        <!-- ── HEADER ── -->
+        <header class="bsa-header">
+            <div class="flex items-center gap-6">
+                <button id="back-btn" class="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">← Back to Hub</button>
+                <div>
+                    <h1 id="project-name" class="text-lg font-bold text-slate-900 m-0">Loading...</h1>
+                    <p class="text-xs font-medium text-slate-500 m-0">Consolidated Financial Analysis</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="toggle-dedupe-btn" class="px-4 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-md text-sm font-semibold hover:bg-orange-100 transition hidden">⚠️ Resolve Duplicates</button>
+                <button id="toggle-edit-btn" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-50 transition">✏️ Editor Mode</button>
+                <button id="save-master-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-semibold hover:bg-indigo-700 shadow-sm transition hidden">💾 Save Changes</button>
+                <div class="w-px h-6 bg-slate-300 mx-2"></div>
+                <button id="export-excel-btn" class="px-4 py-2 bg-green-50 border border-green-200 text-green-700 rounded-md text-sm font-semibold hover:bg-green-100 transition hidden">📊 Export Excel</button>
+                <button id="export-pdf-btn" class="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm font-semibold hover:bg-red-100 transition hidden">📄 Export PDF</button>
+                <button id="export-csv-btn" class="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-100 transition hidden">📥 Export CSV</button>
+            </div>
+        </header>
+
+        <!-- ── STATEMENT MANAGER ── -->
+        <div class="stmt-manager" id="statement-manager">
+            <div id="stmt-badges-container" class="flex flex-wrap gap-2 items-center"></div>
+            <button id="open-upload-modal-btn" class="add-stmt-btn hidden">➕ Add Statement</button>
+        </div>
+
+        <!-- ── TABS ── -->
+        <div class="bsa-tabs" id="main-tabs" style="display:none;">
+            <button class="bsa-tab active" data-target="tab-transactions">📝 Ledger & Transactions</button>
+            <button class="bsa-tab" data-target="tab-summary">📊 Double-Entry Summary</button>
+            <button class="bsa-tab" data-target="tab-analytics">📈 Visual Analytics</button>
+        </div>
+
+        <main class="bsa-main">
+
+            <!-- ── INITIAL LOADING STATE ── -->
+            <div id="initial-loading-state" class="flex flex-col items-center justify-center h-full text-center">
+                <div class="loader mb-4 border-indigo-200 border-t-indigo-600 w-12 h-12 border-4"></div>
+                <h2 class="text-xl font-bold text-slate-800 mb-2">Decrypting Ledger...</h2>
+                <p class="text-slate-500 text-sm max-w-md">Fetching and stitching consolidated transactions from the secure vault. This may take a few seconds for large datasets.</p>
+            </div>
+
+            <!-- ── EMPTY STATE ── -->
+            <div id="empty-state" class="flex flex-col items-center justify-center h-full text-center" style="display:none;">
+                <div class="text-6xl mb-4">🏦</div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">No Statements Loaded</h2>
+                <p class="text-slate-500 mb-6 max-w-md">Upload your first bank statement PDF or start a manual ledger to begin the consolidated analysis.</p>
+                <button id="empty-add-btn" class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-bold shadow-md hover:bg-indigo-700 transition">Upload First Statement</button>
+            </div>
+
+            <!-- ── TAB 1: TRANSACTIONS ── -->
+            <section id="tab-transactions" class="tab-content active">
+                <div class="bg-white border border-slate-200 p-4 rounded-lg shadow-sm mb-4 flex flex-col gap-4">
+                    <input type="text" id="search-input" class="w-full px-4 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:border-indigo-500" placeholder="🔍 Search description, amounts, or notes...">
+                    <div class="flex gap-3 flex-wrap">
+                        <select id="filter-source" class="px-3 py-2 border border-slate-300 rounded-md text-sm font-medium">
+                            <option value="all">All Sources</option>
+                        </select>
+                        <select id="filter-category" class="px-3 py-2 border border-slate-300 rounded-md text-sm font-medium">
+                            <option value="all">All Categories</option>
+                            <option value="Salaries">Salaries</option>
+                            <option value="Rent">Rent</option>
+                            <option value="Loans & EMI">Loans & EMI</option>
+                            <option value="Investments">Investments</option>
+                            <option value="Tax & Govt">Tax & Govt</option>
+                            <option value="Bank Charges">Bank Charges</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Food & Dining">Food & Dining</option>
+                            <option value="Ecom / Online">Ecom / Online</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Professional Fees">Professional Fees</option>
+                            <option value="Income">Income</option>
+                            <option value="Transfers">Transfers</option>
+                            <option value="Others">Others</option>
+                        </select>
+                        <select id="filter-type" class="px-3 py-2 border border-slate-300 rounded-md text-sm font-medium">
+                            <option value="all">All Flows</option>
+                            <option value="debit">Debits (Out)</option>
+                            <option value="credit">Credits (In)</option>
+                        </select>
+                        <select id="filter-period" class="px-3 py-2 border border-slate-300 rounded-md text-sm font-medium">
+                            <option value="all">All Time</option>
+                        </select>
+                        <button id="filter-flagged" class="px-3 py-2 border border-slate-300 text-slate-600 rounded-md text-sm font-medium hover:bg-slate-50">🚩 Flagged Only</button>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mb-2 px-1">
+                    <div class="text-sm font-semibold text-slate-600" id="table-status">Showing 0 transactions</div>
+                    <div id="gap-warning" class="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 hidden">⚠️ Date Gap Detected in Ledger!</div>
+                </div>
+
+                <div class="table-container">
+                    <table id="ledger-table">
+                        <thead>
+                            <tr>
+                                <th width="10%">Date</th>
+                                <th width="25%">Description</th>
+                                <th width="12%">Category</th>
+                                <th width="10%" class="num-col">Debit (Out)</th>
+                                <th width="10%" class="num-col">Credit (In)</th>
+                                <th width="10%" class="num-col">Balance</th>
+                                <th width="9%">Source</th>
+                                <th width="10%">Notes</th>
+                                <th width="4%">🚩</th>
+                                <th width="4%" class="edit-col hidden"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledger-tbody"></tbody>
+                        <tfoot id="ledger-tfoot" class="hidden bg-slate-50"></tfoot>
+                    </table>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button id="load-more-btn" class="px-6 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 shadow-sm transition" style="display:none;">
+                        Load More Transactions ↓
+                    </button>
+                </div>
+            </section>
+
+            <!-- ── TAB 2: SUMMARY ── -->
+            <section id="tab-summary" class="tab-content hidden" style="padding-bottom: 60px;">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-slate-800">Double-Entry Financial Summary</h2>
+                    <select id="summary-period-select" class="px-4 py-2 border border-slate-300 rounded-lg shadow-sm font-semibold">
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+
+                <!-- ── KPI Cards (5 cards) ── -->
+                <div class="grid grid-cols-5 gap-4 mb-8">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Inflow</div>
+                        <div class="text-2xl font-black text-green-600" id="sum-kpi-in">₹0</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Outflow</div>
+                        <div class="text-2xl font-black text-red-600" id="sum-kpi-out">₹0</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Net Flow</div>
+                        <div class="text-2xl font-black text-slate-800" id="sum-kpi-net">₹0</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Opening Balance</div>
+                        <div class="text-2xl font-black text-slate-700" id="sum-open">₹0</div>
+                    </div>
+                    <div class="bg-slate-800 p-5 rounded-xl shadow-sm text-white">
+                        <div class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">Closing Balance</div>
+                        <div class="text-2xl font-black" id="sum-close">₹0</div>
+                    </div>
+                </div>
+
+                <!-- Double Entry Statement -->
+                <div id="pdf-export-area">
+                    <div class="grid grid-cols-2 gap-6 mb-8">
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div class="bg-red-50 px-6 py-3 border-b border-red-100 flex justify-between">
+                                <h3 class="font-bold text-red-800">Payments & Outflows (Dr)</h3>
+                                <span class="font-bold text-red-800" id="debit-total-header">₹0</span>
+                            </div>
+                            <div class="p-4">
+                                <table class="w-full text-sm" id="debit-summary-table"></table>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div class="bg-green-50 px-6 py-3 border-b border-green-100 flex justify-between">
+                                <h3 class="font-bold text-green-800">Receipts & Inflows (Cr)</h3>
+                                <span class="font-bold text-green-800" id="credit-total-header">₹0</span>
+                            </div>
+                            <div class="p-4">
+                                <table class="w-full text-sm" id="credit-summary-table"></table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="text-lg font-bold text-slate-800 mb-4">Monthly Breakdown</h3>
+                    <div class="table-container">
+                        <table id="monthly-breakdown-table" class="text-sm"></table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── TAB 3: ANALYTICS ── -->
+            <section id="tab-analytics" class="tab-content hidden" style="padding-bottom: 60px;">
+                <div class="grid grid-cols-3 gap-6 mb-6">
+                    <div class="col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <h3 class="font-bold text-slate-800 mb-4">Monthly Inflow vs Outflow</h3>
+                        <canvas id="chart-monthly-bar" height="100"></canvas>
+                    </div>
+                    <div class="col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <h3 class="font-bold text-slate-800 mb-4">Category Breakdown</h3>
+                        <canvas id="chart-category-donut" height="200"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+                    <h3 class="font-bold text-slate-800 mb-4">Running Balance Trend</h3>
+                    <canvas id="chart-running-balance" height="60"></canvas>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                            <h3 class="font-bold text-slate-800">Largest 10 Transactions</h3>
+                        </div>
+                        <table class="w-full text-sm" id="top-10-table"></table>
+                    </div>
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                            <h3 class="font-bold text-slate-800">Detected Recurring Payments</h3>
+                        </div>
+                        <table class="w-full text-sm" id="recurring-table"></table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ── MODAL: UPLOAD STATEMENT ── -->
+    <div id="upload-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white w-full max-w-md rounded-xl shadow-2xl p-6 relative">
+            <button id="close-upload-modal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+            <h2 class="text-xl font-bold text-slate-800 mb-1">Add Bank Statement</h2>
+            <p class="text-sm text-slate-500 mb-6">Upload a PDF or start a manual ledger.</p>
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Statement Name / Source</label>
+                <input type="text" id="stmt-name-input" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" placeholder="e.g. HDFC Current A/C">
+            </div>
+            <div id="upload-ui" class="border-2 border-dashed border-indigo-200 bg-indigo-50 rounded-lg p-6 text-center mb-4 transition hover:border-indigo-400">
+                <div class="text-3xl mb-2">📄</div>
+                <p class="text-sm font-semibold text-indigo-900 mb-1">Select PDF File</p>
+                <p class="text-xs text-indigo-600 mb-4">Auto-extracts using AI Engine</p>
+                <input type="file" id="stmt-file-input" accept="application/pdf" class="hidden" />
+                <button id="trigger-file-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-semibold hover:bg-indigo-700">Choose File</button>
+            </div>
+            <div class="flex items-center gap-4 my-4">
+                <div class="flex-1 h-px bg-slate-200"></div>
+                <span class="text-xs font-semibold text-slate-400 uppercase">OR</span>
+                <div class="flex-1 h-px bg-slate-200"></div>
+            </div>
+            <button id="start-manual-btn" class="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-md text-sm font-semibold hover:bg-slate-50">✍️ Start Blank Manual Ledger</button>
+            <div id="upload-loading" class="absolute inset-0 bg-white/90 rounded-xl flex flex-col items-center justify-center hidden">
+                <div class="loader mb-3"></div>
+                <p class="text-sm font-bold text-indigo-900" id="upload-loading-text">Extracting Data...</p>
+                <p class="text-xs text-slate-500">This may take 30-60 seconds.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MODAL: DEDUPLICATE RESOLVER ── -->
+    <div id="dedupe-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center hidden">
+        <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl p-6 flex flex-col max-h-[90vh]">
+            <h2 class="text-xl font-bold text-orange-600 mb-1">⚠️ Potential Duplicates Detected</h2>
+            <p class="text-sm text-slate-500 mb-4">These transactions share the same date and amount across different statements. Select which ones to keep.</p>
+            <div class="flex-1 overflow-y-auto pr-2" id="dedupe-list"></div>
+            <div class="mt-4 pt-4 border-t border-slate-200 flex justify-end gap-3">
+                <button id="close-dedupe-btn" class="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold">Cancel</button>
+                <button id="apply-dedupe-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-semibold hover:bg-indigo-700">Apply & Deduplicate</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/bsa.js"></script>
+</body>
+</html>

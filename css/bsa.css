@@ -1,0 +1,148 @@
+/* ========================================================= */
+/* 1. FIX DASHBOARD GRID BLEEDING & CANVAS POSITIONING       */
+/* ========================================================= */
+body.bsa-view {
+    background-color: #f4f7f9 !important;
+    background-image: none !important;
+    font-family: 'Inter', sans-serif;
+    color: #0f172a;
+    overflow: hidden; 
+}
+body.bsa-view::before, body.bsa-view::after { display: none !important; }
+#space-canvas { display: none !important; }
+
+
+/* ── CUSTOM SCROLLBARS ── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+
+/* ── LAYOUT ── */
+.bsa-layout { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+.bsa-header { background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 12px 24px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+.bsa-main { flex: 1; overflow-y: auto; padding: 24px; position: relative; }
+
+
+/* ── STATEMENT MANAGER ── */
+.stmt-manager { background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.stmt-badge { background: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #334155; }
+.stmt-badge.locked { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.add-stmt-btn { background: #eff6ff; border: 1px dashed #bfdbfe; color: #1d4ed8; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.add-stmt-btn:hover { background: #dbeafe; }
+
+
+/* ── TABS ── */
+.bsa-tabs { display: flex; background: #ffffff; padding: 0 24px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
+.bsa-tab { background: none; border: none; padding: 16px 24px; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.bsa-tab:hover { color: #0f172a; }
+.bsa-tab.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+.tab-content { display: none; animation: fadeIn 0.3s ease; }
+.tab-content.active { display: block; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+
+/* ── TABLE STYLES ── */
+.table-container { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th { background: #f8fafc; padding: 12px 16px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+
+/* FIX: Sticky thead so column headers stay visible while scrolling the ledger */
+#ledger-table thead th { position: sticky; top: 0; z-index: 10; }
+
+td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+tr:hover { background: #f8fafc; }
+.num-col { text-align: right; font-variant-numeric: tabular-nums; }
+.val-debit  { color: #ef4444; font-weight: 500; }
+.val-credit { color: #10b981; font-weight: 500; }
+
+
+/* ── CATEGORY CHIPS ── */
+/* FIX: All 14 categories from bsa.js categorizeTransaction() */
+.cat-chip { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; display: inline-block; }
+
+.cat-Salaries          { background: #dbeafe; color: #1e40af; }
+.cat-Rent              { background: #ede9fe; color: #5b21b6; }
+.cat-Loans\&EMI,
+.cat-Loans---EMI       { background: #fee2e2; color: #991b1b; }
+.cat-Investments       { background: #d1fae5; color: #065f46; }
+.cat-Tax\&Govt,
+.cat-Tax---Govt        { background: #fef3c7; color: #92400e; }
+.cat-Bank-Charges      { background: #ffedd5; color: #9a3412; }
+.cat-Utilities         { background: #e0f2fe; color: #0369a1; }
+.cat-Food\&Dining,
+.cat-Food---Dining     { background: #fef9c3; color: #854d0e; }
+.cat-Ecom--Online,
+.cat-Ecom---Online     { background: #f3e8ff; color: #6b21a8; }
+.cat-Cash              { background: #e2e8f0; color: #334155; }
+.cat-Professional-Fees { background: #ecfdf5; color: #14532d; }
+.cat-Income            { background: #dcfce7; color: #166534; }
+.cat-Transfers         { background: #e0f2fe; color: #075985; }
+.cat-Others            { background: #f1f5f9; color: #64748b; }
+
+/* Legacy chips kept for backward compatibility */
+.cat-Transfer   { background: #f3e8ff; color: #4338ca; }
+.cat-Shopping   { background: #ffedd5; color: #92400e; }
+.cat-Food       { background: #ffe4e6; color: #991b1b; }
+.cat-Investment { background: #e0f2fe; color: #0369a1; }
+.cat-Uncategorized { background: #f1f5f9; color: #64748b; }
+
+
+/* ── SOURCE BADGE ── */
+/* FIX: Added — injected by bsa.js renderPage() but was missing from CSS */
+.source-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #475569;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+
+/* ── INLINE EDITOR INPUTS ── */
+.inline-input { width: 100%; background: transparent; border: 1px solid transparent; padding: 4px; font-size: 13px; border-radius: 4px; }
+.inline-input:focus, .inline-input:hover { background: #fff; border-color: #cbd5e1; outline: none; }
+.inline-select { background: transparent; border: 1px solid transparent; padding: 4px; font-size: 11px; border-radius: 4px; font-weight: 600; cursor: pointer; }
+.inline-select:hover { border-color: #cbd5e1; }
+
+/* FIX: Added — delete row button injected by bsa.js in editor mode */
+.delete-row {
+    padding: 2px 8px;
+    background: #fee2e2;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #dc2626;
+    cursor: pointer;
+    font-weight: 700;
+    transition: background 0.15s;
+}
+.delete-row:hover { background: #fca5a5; }
+
+
+/* ── FLAG & DUPLICATE ── */
+.flag-btn { cursor: pointer; opacity: 0.3; transition: 0.2s; filter: grayscale(100%); }
+.flag-btn.active { opacity: 1; filter: grayscale(0%); }
+.row-duplicate { background: #fff1f2 !important; opacity: 0.8; }
+.hidden-row { display: none !important; }
+
+
+/* ── UTILS ── */
+.loader { border: 3px solid #e2e8f0; border-top-color: #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+
+/* ── TOAST NOTIFICATIONS ── */
+#toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 50; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: #1e293b; color: white; padding: 12px 20px; border-radius: 8px; font-size: 13px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); animation: slideIn 0.3s ease forwards; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
