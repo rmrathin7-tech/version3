@@ -734,34 +734,54 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
   const deleteSideHeading = (idx) => setSideHeadings(prev => prev.filter((_, i) => i !== idx));
 
   // ── FORMULA ENGINE ────────────────────────────────────────────────────────
-  const evaluateFormula = useCallback((formula, rIdx, customRecordsContext) => {
+const evaluateFormula = useCallback((formula, rIdx, customRecordsContext) => {
     if (!formula) return '';
     const activeRecords = customRecordsContext || records;
-    let s = formula;
+    
+    // 1. FIX: Format string and strip the leading '=' if the user types it
+    let s = String(formula).toUpperCase().trim();
+    if (s.startsWith('=')) {
+      s = s.substring(1);
+    }
+
     const allSchemaCells = runtimeSchemaRows.flatMap(r => r.cells || []);
+    
+    // 2. Execute SUM for entire column (e.g. SUM(C2))
     s = s.replace(/SUM\(C(\d+)\)/gi, (_, c) => {
       const cellId = allSchemaCells[parseInt(c)]?.id;
-      if (!cellId) return 0;
-      return activeRecords.reduce((sum, rec) => sum + (parseFloat(String(rec[cellId]).replace(/[^0-9.-]/g, '')) || 0), 0);
+      if (!cellId) return '(0)';
+      const sum = activeRecords.reduce((acc, rec) => acc + (parseFloat(String(rec[cellId]).replace(/[^0-9.-]/g, '')) || 0), 0);
+      return `(${sum})`; // Wrapped in parens for safe execution
     });
+
+    // 3. Execute specific Row/Col match (e.g. R0C1)
     s = s.replace(/R(\d+)C(\d+)/gi, (_, r, c) => {
       const cellId = runtimeSchemaRows[parseInt(r)]?.cells?.[parseInt(c)]?.id;
-      if (!cellId) return 0;
-      return parseFloat(String(activeRecords[parseInt(r)]?.[cellId]).replace(/[^0-9.-]/g, '')) || 0;
+      if (!cellId) return '(0)';
+      const val = parseFloat(String(activeRecords[parseInt(r)]?.[cellId]).replace(/[^0-9.-]/g, '')) || 0;
+      return `(${val})`;
     });
+
+    // 4. Execute specific Col match for the current row (e.g. C2)
     s = s.replace(/C(\d+)/gi, (_, c) => {
       const cellId = allSchemaCells[parseInt(c)]?.id;
-      if (!cellId) return 0;
-      return parseFloat(String(activeRecords[rIdx]?.[cellId]).replace(/[^0-9.-]/g, '')) || 0;
+      if (!cellId) return '(0)';
+      const val = parseFloat(String(activeRecords[rIdx]?.[cellId]).replace(/[^0-9.-]/g, '')) || 0;
+      return `(${val})`;
     });
+
+    // 5. Safely calculate final math
     try {
       const clean = s.replace(/\s/g, '');
-      if (!/^[0-9+\-*/().]+$/.test(clean)) return s;
+      // Ensure only valid math characters remain so it doesn't crash
+      if (!/^[0-9+\-*/().]+$/.test(clean)) return s; 
+      
       const result = new Function(`'use strict'; return (${clean})`)();
       return Number.isFinite(result) ? result.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '';
-    } catch { return ''; }
+    } catch { 
+      return ''; 
+    }
   }, [records, runtimeSchemaRows]);
-
   // ── COPY TABLE ────────────────────────────────────────────────────────────
   const copyTableAsText = () => {
     const hRow = block.showSno ? ['#', ...headers] : headers;
