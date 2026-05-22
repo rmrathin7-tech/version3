@@ -271,7 +271,36 @@ export default function IMSettings() {
     }));
     setActiveBlockId(uid);
   };
-
+const moveBlockToSection = (blockId, targetSectionId) => {
+    if (targetSectionId === activeSectionId) return;
+    let movedBlock = null;
+    
+    setSections(prev => {
+      // 1. Find and extract the block from current section
+      const newSections = prev.map(sec => {
+        if (sec.id === activeSectionId) {
+          movedBlock = sec.blocks.find(b => b.id === blockId);
+          return { ...sec, blocks: sec.blocks.filter(b => b.id !== blockId) };
+        }
+        return sec;
+      });
+      
+      // 2. Add block to target section
+      if (movedBlock) {
+        return newSections.map(sec => {
+          if (sec.id === targetSectionId) {
+            const newBlocks = [...sec.blocks, { ...movedBlock, order: sec.blocks.length }];
+            return { ...sec, blocks: newBlocks };
+          }
+          return sec;
+        });
+      }
+      return prev;
+    });
+    
+    // 3. Switch active section so user follows the block
+    setActiveSectionId(targetSectionId);
+  };
   const handleSave = async () => {
     setIsSaving(true);
     setSaveMsg('');
@@ -1227,7 +1256,7 @@ export default function IMSettings() {
                 </div>
               )}
 
-              {activeBlock && (
+{activeBlock && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: T.primaryLight, border: `1px solid ${T.primaryBorder}`, borderRadius: '7px' }}>
                     <span style={{ fontSize: '0.72rem', fontWeight: 800, color: T.primary, textTransform: 'uppercase', letterSpacing: '1px' }}>{activeBlock.type}</span>
@@ -1241,9 +1270,31 @@ export default function IMSettings() {
                     <label style={lbl}>Data Path</label>
                     <input style={{ ...inp, fontFamily: 'monospace', fontSize: '0.75rem' }} value={activeBlock.dataPath || ''} onChange={e => updateActiveBlock({ dataPath: e.target.value })} />
                   </div>
-                  <div>
-                    <label style={lbl}>Placeholder / Description</label>
-                    <textarea style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} value={activeBlock.desc || ''} onChange={e => updateActiveBlock({ desc: e.target.value })} rows={3} />
+                  
+                  {/* Swaps Description for Instruction Text when appropriate */}
+                  {activeBlock.type === 'instruction' ? (
+                    <div>
+                      <label style={{ ...lbl, color: T.primary }}>Instruction Text</label>
+                      <textarea style={{ ...inp, resize: 'vertical', minHeight: '80px', lineHeight: 1.5 }}
+                        value={activeBlock.content || ''}
+                        onChange={e => updateActiveBlock({ content: e.target.value })}
+                        placeholder="Type the guidance text here..." />
+                    </div>
+                  ) : (
+                    <div>
+                      <label style={lbl}>Placeholder / Description</label>
+                      <textarea style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} value={activeBlock.desc || ''} onChange={e => updateActiveBlock({ desc: e.target.value })} rows={3} />
+                    </div>
+                  )}
+
+                  {/* Move to Section Dropdown Safely Inside the Active Block Check */}
+                  <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
+                    <label style={lbl}>Move to Section</label>
+                    <select style={{ ...inp, background: T.selectBg, cursor: 'pointer' }} value={activeSectionId} onChange={e => moveBlockToSection(activeBlock.id, e.target.value)}>
+                      {sections.map(s => (
+                        <option key={s.id} value={s.id}>{s.navLabel || s.heading || 'Untitled Section'}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {renderBlockSettings(activeBlock, updateActiveBlock, 'root')}

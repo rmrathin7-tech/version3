@@ -255,11 +255,7 @@ export default function RepeatingGroupBlock({ block, value, onChange, lockedBy, 
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <BlockWrapper block={block} lockedBy={lockedBy} isDark={isDark}>
-      {block.label && (
-        <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: t.textMuted, marginBottom: '12px' }}>
-          {block.label}
-        </label>
-      )}
+
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {items.map((item, idx) => (

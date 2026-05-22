@@ -734,26 +734,37 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
   const deleteSideHeading = (idx) => setSideHeadings(prev => prev.filter((_, i) => i !== idx));
 
   // ── FORMULA ENGINE ────────────────────────────────────────────────────────
+// ── FORMULA ENGINE ────────────────────────────────────────────────────────
   const evaluateFormula = useCallback((formula, rIdx, customRecordsContext) => {
     if (!formula) return '';
     const activeRecords = customRecordsContext || records;
     let s = formula;
     const allSchemaCells = runtimeSchemaRows.flatMap(r => r.cells || []);
+    const baseSchemaCells = runtimeSchemaRows[0]?.cells || [];
+    
+    // Adjusted for 1-based indexing so SUM(C1) targets the first column
     s = s.replace(/SUM\(C(\d+)\)/gi, (_, c) => {
-      const cellId = allSchemaCells[parseInt(c)]?.id;
+      const colIdx = parseInt(c, 10) - 1; 
+      const cellId = baseSchemaCells[colIdx]?.id || `col_${colIdx}`;
       if (!cellId) return 0;
       return activeRecords.reduce((sum, rec) => sum + (parseFloat(String(rec[cellId]).replace(/[^0-9.-]/g, '')) || 0), 0);
     });
+    
     s = s.replace(/R(\d+)C(\d+)/gi, (_, r, c) => {
-      const cellId = runtimeSchemaRows[parseInt(r)]?.cells?.[parseInt(c)]?.id;
+      const rowI = parseInt(r, 10) - 1;
+      const colI = parseInt(c, 10) - 1;
+      const cellId = runtimeSchemaRows[rowI]?.cells?.[colI]?.id || `col_${colI}`;
       if (!cellId) return 0;
-      return parseFloat(String(activeRecords[parseInt(r)]?.[cellId]).replace(/[^0-9.-]/g, '')) || 0;
+      return parseFloat(String(activeRecords[rowI]?.[cellId]).replace(/[^0-9.-]/g, '')) || 0;
     });
+    
     s = s.replace(/C(\d+)/gi, (_, c) => {
-      const cellId = allSchemaCells[parseInt(c)]?.id;
+      const colIdx = parseInt(c, 10) - 1;
+      const cellId = baseSchemaCells[colIdx]?.id || `col_${colIdx}`;
       if (!cellId) return 0;
       return parseFloat(String(activeRecords[rIdx]?.[cellId]).replace(/[^0-9.-]/g, '')) || 0;
     });
+    
     try {
       const clean = s.replace(/\s/g, '');
       if (!/^[0-9+\-*/().]+$/.test(clean)) return s;
@@ -761,7 +772,6 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
       return Number.isFinite(result) ? result.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '';
     } catch { return ''; }
   }, [records, runtimeSchemaRows]);
-
   // ── COPY TABLE ────────────────────────────────────────────────────────────
   const copyTableAsText = () => {
     const hRow = block.showSno ? ['#', ...headers] : headers;
@@ -1026,29 +1036,7 @@ case 'smart-select': {
 
       {/* Top action bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-          <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: t.textMuted, whiteSpace: 'nowrap' }}>{block.label}</span>
-          {block.allowInstanceNames && (
-            <input
-              value={mainInstanceName}
-              onChange={e => handleMainInstanceNameChange(e.target.value)}
-              placeholder="Enter table subheading..."
-              disabled={!!lockedBy}
-              style={{
-                background: 'transparent',
-                border: `1px solid ${t.border}`,
-                borderRadius: '4px',
-                padding: '4px 8px',
-                color: t.text,
-                fontSize: '0.85rem',
-                width: '100%',
-                maxWidth: '300px',
-                outline: 'none'
-              }}
-              {...focusHandlers}
-            />
-          )}
-        </div>
+        
         <div style={{ display: 'flex', gap: '6px' }}>
           {block.allowAddSideHeadings && !lockedBy && (
             <button onClick={addSideHeading} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: `1px solid ${t.border}`, color: t.textMuted, padding: '4px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}><Plus size={12} /> Side Heading</button>

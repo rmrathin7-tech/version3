@@ -46,13 +46,7 @@ export default function RepeatingBlockSet({
 
   return (
     <BlockWrapper block={block} lockedBy={lockedBy} isDark={isDark}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <Copy size={15} style={{ color: t.textMuted }} />
-        <span style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-          {block.label || 'Repeating Set'}
-        </span>
-      </div>
+
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {instances.map((instance, idx) => (

@@ -696,11 +696,7 @@ export default function RichTextBlock({
 
   return (
     <BlockWrapper block={block} lockedBy={lockedBy} isDark={isDark}>
-      {block.label && (
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, color: t.textMuted, marginBottom: 8 }}>
-          {block.label}
-        </label>
-      )}
+     
 
       <div style={{ border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden', background: t.bg }}>
 

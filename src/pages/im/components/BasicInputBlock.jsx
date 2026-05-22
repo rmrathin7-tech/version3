@@ -199,12 +199,12 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
   // ── RENDER ──────────────────────────────────────────────────────────────
   const renderInput = () => {
 
-    // 1. INSTRUCTION block — read-only note
+// 1. INSTRUCTION block — read-only note
     if (block.type === 'instruction') {
       return (
         <div style={{ padding: '12px 16px', borderRadius: '8px', fontSize: '0.85rem', color: t.guideText, background: t.guide, borderLeft: `3px solid ${t.guideLeft}`, lineHeight: 1.6 }}>
           <Info size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
-          {block.content || block.label}
+          <span style={{ whiteSpace: 'pre-wrap' }}>{block.content || block.desc || block.label}</span>
         </div>
       );
     }
@@ -464,15 +464,7 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
   return (
     <BlockWrapper block={block} lockedBy={lockedBy} isDark={isDark}>
       <div style={{ marginBottom: 4 }}>
-        {/* Label row */}
-        {block.label && block.type !== 'instruction' && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <label style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: t.textMuted }}>
-              {block.label}
-              {block.required && <span style={{ color: t.accent, marginLeft: 4 }}>*</span>}
-            </label>
-          </div>
-        )}
+      
         {/* The input */}
         {renderInput()}
         {/* Guide text below the field */}

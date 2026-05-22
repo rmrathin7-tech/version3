@@ -255,11 +255,7 @@ export default function ChartBlock({ block, value, onChange, lockedBy, onFocus, 
     <BlockWrapper block={block} lockedBy={lockedBy} isDark={isDark}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '12px' }}>
         <div>
-          {block.label && (
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: t.textMuted }}>
-              {block.label}
-            </label>
-          )}
+      
           {block.title && (
             <div style={{ fontSize: '16px', fontWeight: 700, color: t.text, marginTop: '4px' }}>{block.title}</div>
           )}
