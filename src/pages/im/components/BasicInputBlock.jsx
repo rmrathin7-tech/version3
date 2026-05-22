@@ -199,12 +199,16 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
   // ── RENDER ──────────────────────────────────────────────────────────────
   const renderInput = () => {
 
-    // 1. INSTRUCTION block — read-only note
+// 1. INSTRUCTION block — read-only note (Permanently Open)
     if (block.type === 'instruction') {
       return (
-        <div style={{ padding: '12px 16px', borderRadius: '8px', fontSize: '0.85rem', color: t.guideText, background: t.guide, borderLeft: `3px solid ${t.guideLeft}`, lineHeight: 1.6 }}>
-          <Info size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
-          {block.content || block.label}
+        <div style={{ padding: '12px 16px', borderRadius: '8px', fontSize: '0.85rem', color: t.guideText, background: t.guide, borderLeft: `3px solid ${t.guideLeft}`, lineHeight: 1.5 }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Info size={16} /> <strong>{block.label || 'Instruction'}</strong>
+           </div>
+           <div style={{ marginTop: 8, color: t.textMuted, whiteSpace: 'pre-wrap' }}>
+              {block.content || block.guide || 'No instruction content provided. Configure this in Settings.'}
+           </div>
         </div>
       );
     }
