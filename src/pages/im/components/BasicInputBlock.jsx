@@ -464,10 +464,9 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
   return (
     <BlockWrapper block={block} lockedBy={lockedBy} isDark={isDark}>
       <div style={{ marginBottom: 4 }}>
-        {/* Label row */}
-        {block.label && block.type !== 'instruction' && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <label style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: t.textMuted }}>
+{/* Label row - Blocked double-rendering on Checkbox */}
+        {block.label && block.type !== 'instruction' && block.type !== 'checkbox' && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>            <label style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: t.textMuted }}>
               {block.label}
               {block.required && <span style={{ color: t.accent, marginLeft: 4 }}>*</span>}
             </label>
