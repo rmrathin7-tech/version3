@@ -63,12 +63,27 @@ export default function FSADataEntry({
   const [itemMappings, setItemMappings] = useState({});
   const [rowStatuses, setRowStatuses] = useState({}); // { [rowId]: 'reviewed' | 'deleted' | 'pending' }
   const [viewMode, setViewMode] = useState('split'); // 'split', 'pdf-only', 'data-only'
+  
+  // ── FIX: MEMOIZE PDF BLOB URL TO PREVENT IFRAME REFRESHING ──
+  const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
 
   const pdfCtx = usePDFExtraction(updateDataPath, configSchemas) || {};
   const currentCoA = configSchemas?.chartOfAccounts?.shared?.[activeDocKey] || [];
+
   const handleOpenReadOnlyMode = () => {
     setActiveTab('statements');
   };
+
+  // Manage PDF URL Lifecycle
+  useEffect(() => {
+    if (pdfCtx.selectedPdfFile) {
+      const url = URL.createObjectURL(pdfCtx.selectedPdfFile);
+      setPdfBlobUrl(url);
+      return () => URL.revokeObjectURL(url); // Cleanup to prevent memory leaks
+    } else {
+      setPdfBlobUrl(null);
+    }
+  }, [pdfCtx.selectedPdfFile]);
 
   // ── 1. REAL-TIME SYNCHRONIZATION OF METRIC LAYOUTS ──
   useEffect(() => {
@@ -476,11 +491,31 @@ export default function FSADataEntry({
     setRowStatuses(initialStatuses);
   };
 
+  // ── FIX: ALLOW INLINE EDITING OF DATA IN REVIEW MODAL ──
+  const handleReviewEdit = (stmtType, secKey, itemKey, cleanYearToFind, newValue) => {
+    setReviewPayload(prev => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev));
+      const stmtData = next[stmtType]?.data;
+      if (!stmtData) return prev;
+
+      for (const origYear of Object.keys(stmtData)) {
+        if (origYear.replace(/\D/g, '').slice(0, 4) === cleanYearToFind) {
+          if (stmtData[origYear]?.[secKey]?.[itemKey] !== undefined) {
+            stmtData[origYear][secKey][itemKey] = newValue;
+          }
+          break;
+        }
+      }
+      return next;
+    });
+  };
+
   const confirmAndInject = async () => {
     // Check if any rows are still pending
     const unreviewed = Object.values(rowStatuses).filter(s => s === 'pending').length;
     if (unreviewed > 0) {
-      if (!window.confirm(`You have ${unreviewed} unreviewed items. Save anyway?`)) return;
+      if (!window.confirm(`⚠️ You have ${unreviewed} unreviewed items.\n\nAre you sure you want to save and inject them into the matrix?`)) return;
     }
 
     try {
@@ -566,14 +601,11 @@ export default function FSADataEntry({
       );
     }
 
-    // MAIN REVIEW MODAL UI
-    const pdfUrl = pdfCtx.selectedPdfFile ? URL.createObjectURL(pdfCtx.selectedPdfFile) : null;
-
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex' }}>
         
         {/* LEFT PANE: PDF Viewer (Hide if Data-Only) */}
-        {pdfUrl && viewMode !== 'data-only' && (
+        {pdfBlobUrl && viewMode !== 'data-only' && (
           <div style={{ width: viewMode === 'pdf-only' ? '100%' : '42%', borderRight: '1px solid var(--border-strong)', background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column', transition: 'width 0.3s' }}>
             <div style={{ padding: '12px 16px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>📄 Extracted Document</span>
@@ -581,7 +613,7 @@ export default function FSADataEntry({
                 {viewMode === 'split' ? '⛶ Expand PDF' : '◩ Split View'}
               </button>
             </div>
-            <iframe src={pdfUrl} style={{ flex: 1, width: '100%', border: 'none' }} title="PDF Review" />
+            <iframe src={pdfBlobUrl} style={{ flex: 1, width: '100%', border: 'none' }} title="PDF Review" />
           </div>
         )}
 
@@ -592,10 +624,10 @@ export default function FSADataEntry({
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
               <div>
                 <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}><Sparkles color="var(--accent-color)" /> AI Schema Mapping Review</h2>
-                <p style={{ color: 'var(--text-muted)', margin: '8px 0 0 0' }}>Verify and map extracted line items into your chart of accounts.</p>
+                <p style={{ color: 'var(--text-muted)', margin: '8px 0 0 0' }}>Verify, edit, and map extracted line items into your chart of accounts.</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
-                {pdfUrl && <button onClick={() => setViewMode(viewMode === 'split' ? 'data-only' : 'split')} style={{ padding: '6px 12px', background: 'var(--bg-hover)', border: 'none', color: 'var(--text-primary)', borderRadius: 6, cursor: 'pointer' }}>
+                {pdfBlobUrl && <button onClick={() => setViewMode(viewMode === 'split' ? 'data-only' : 'split')} style={{ padding: '6px 12px', background: 'var(--bg-hover)', border: 'none', color: 'var(--text-primary)', borderRadius: 6, cursor: 'pointer' }}>
                   {viewMode === 'split' ? '⛶ Expand Data' : '◩ Split View'}
                 </button>}
               </div>
@@ -665,7 +697,7 @@ export default function FSADataEntry({
                                       disabled={isDeleted}
                                       value={itemMappings[rowId]?.item || '__NEW__'}
                                       onChange={(e) => setItemMappings(prev => ({ ...prev, [rowId]: { ...prev[rowId], item: e.target.value } }))}
-                                      style={{ width: '100%', padding: '8px', background: 'var(--bg-tertiary)', border: '1px dashed var(--border-strong)', color: 'var(--text-primary)', borderRadius: 6, fontSize: 12, outline: 'none', cursor: 'pointer' }}
+                                      className="styled-select"
                                     >
                                       <option value="__NEW__" style={{ color: '#ef4444' }}>+ Create Custom Item: "{itemKey}"</option>
                                       {schemaNodes.filter(n => n.type === 'section').map(secNode => (
@@ -680,8 +712,28 @@ export default function FSADataEntry({
                                   </td>
                                   
                                   {Array.from(extractedYears).sort().map(y => (
-                                    <td key={y} style={{ padding: '16px', textAlign: 'right', fontWeight: 700, color: 'var(--accent-text)', fontFamily: "'JetBrains Mono', monospace" }}>
-                                      {yearVals[y] ? formatIN(yearVals[y], 2) : '-'}
+                                    <td key={y} style={{ padding: '16px', textAlign: 'right' }}>
+                                      <input
+                                          type="text"
+                                          disabled={isDeleted}
+                                          className="glow-input"
+                                          style={{ minWidth: '80px', width: '100%', fontSize: '13px' }}
+                                          defaultValue={yearVals[y] !== undefined ? formatIN(yearVals[y], 2) : ''}
+                                          onFocus={e => {
+                                              const val = e.target.value.replace(/,/g, '');
+                                              if (parseFloat(val) === 0 || val === '') e.target.value = '';
+                                              else e.target.select();
+                                          }}
+                                          onBlur={(e) => {
+                                              let rawVal = e.target.value.replace(/,/g, '').trim();
+                                              if (!rawVal || rawVal === '') rawVal = '0';
+                                              const numericValue = parseFloat(rawVal);
+                                              if (!isNaN(numericValue)) {
+                                                  e.target.value = formatIN(numericValue, 2);
+                                                  handleReviewEdit(stmtType, secKey, itemKey, y, numericValue);
+                                              }
+                                          }}
+                                      />
                                     </td>
                                   ))}
                                   
@@ -831,6 +883,29 @@ export default function FSADataEntry({
           border: none !important;
           color: var(--text-muted) !important;
           box-shadow: none !important;
+        }
+
+        /* ── NEW: DROPDOWN CSS FIX ── */
+        .styled-select {
+          background: var(--bg-tertiary);
+          border: 1px dashed var(--border-strong);
+          color: var(--text-primary);
+          padding: 8px 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          outline: none;
+          cursor: pointer;
+          width: 100%;
+          transition: all 0.2s ease;
+          appearance: none;
+          background-image: url('data:image/svg+xml;utf8,<svg fill="%23999" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+          background-repeat: no-repeat;
+          background-position: right 8px center;
+        }
+        .styled-select:hover, .styled-select:focus {
+          border-color: var(--accent-color);
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
         }
 
         .empty-state-pulse {
@@ -1087,7 +1162,7 @@ export default function FSADataEntry({
                             <select 
                               value=""
                               onChange={e => handleActivateLineItem('equity', e.target.value)}
-                              style={{ background: 'var(--bg-tertiary)', border: '1px dashed var(--border-strong)', color: 'var(--accent-text)', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, outline: 'none', cursor: 'pointer', width: '100%' }}
+                              className="styled-select"
                             >
                               <option value="" disabled>+ Add Item...</option>
                               <option value="__CUSTOM__">⚡ Create Custom Line...</option>
@@ -1263,7 +1338,7 @@ export default function FSADataEntry({
                             <select 
                               value=""
                               onChange={e => handleActivateLineItem(node.key, e.target.value)}
-                              style={{ background: 'var(--bg-tertiary)', border: '1px dashed var(--border-strong)', color: 'var(--accent-text)', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, outline: 'none', cursor: 'pointer', width: '100%' }}
+                              className="styled-select"
                             >
                               <option value="" disabled>+ Add Item...</option>
                               <option value="__CUSTOM__">⚡ Create Custom Line...</option>
