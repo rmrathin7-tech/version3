@@ -144,9 +144,3 @@ code {
   --accent-color: #4F46E5;
   --accent-text: #4338CA;
 }
-input::placeholder,
-textarea::placeholder {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}

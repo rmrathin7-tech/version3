@@ -429,18 +429,16 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
     color: ${t.textMuted}; 
     pointer-events: none; 
     opacity: 0.6; 
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: inline-block;
-    max-width: 100%;
-    vertical-align: bottom;
+    /* Safe wrap restored */
+    white-space: pre-wrap;
+    word-wrap: break-word;
   } 
   .mixed-inline-input:focus { 
     border-color: ${t.accent} !important; 
     box-shadow: 0 0 0 2px rgba(239,68,68,0.15); 
   }
-`}</style>          {parts.map((part, pi) => {
+`}</style>
+         {parts.map((part, pi) => {
             if (/^\[.+\]$/.test(part)) {
               const idx      = inputIdx++;
               const inner    = part.slice(1, -1);

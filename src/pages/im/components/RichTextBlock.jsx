@@ -779,11 +779,10 @@ export default function RichTextBlock({
 .im-quill-canvas .ql-editor.ql-blank::before { 
   color: ${t.textMuted} !important; 
   font-style: italic; 
-  white-space: nowrap; 
-  overflow: hidden; 
-  text-overflow: ellipsis; 
-  right: 24px; 
-}        .ql-snow .ql-stroke { stroke: ${t.textMuted} !important; }
+  /* Safe wrap restored */
+  white-space: pre-wrap; 
+  word-wrap: break-word;
+}      .ql-snow .ql-stroke { stroke: ${t.textMuted} !important; }
         .ql-snow .ql-fill   { fill:   ${t.textMuted} !important; }
         .ql-snow.ql-toolbar button:hover .ql-stroke,
         .ql-snow.ql-toolbar button.ql-active .ql-stroke { stroke: #ef4444 !important; }

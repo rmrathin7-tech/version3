@@ -70,7 +70,17 @@ const AutoResizeTextarea = ({ val, onChange, disabled, placeholder, cellInputSty
       disabled={disabled}
       placeholder={placeholder}
       rows={1}
-      style={{ ...cellInputStyle, resize: 'none', overflow: 'hidden', lineHeight: 1.5, minHeight: '38px' }}
+      /* 1. Add the Native Tooltip (using the correct scoped variable) */
+      title={placeholder || 'Enter value'} 
+      
+      /* 2. Update the style to force safe wrapping */
+      style={{
+        ...cellInputStyle, 
+        whiteSpace: 'pre-wrap', 
+        wordWrap: 'break-word',
+        overflow: 'hidden',  /* Hides excess text visually without breaking the grid */
+        resize: 'none'       /* Prevents users from dragging the cell out of shape */
+      }}      
       {...focusHandlers}
     />
   );
