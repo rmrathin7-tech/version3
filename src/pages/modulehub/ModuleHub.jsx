@@ -12,7 +12,7 @@ import {
   deleteDoc, doc, serverTimestamp, setDoc, orderBy, getDoc 
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import IMTaskBoard from '../im/components/IMTaskBoard.jsx';
+import IMTaskBoard from '../im/components/IMTaskBoard.jsx'; 
 // ── 3D TILT CARD (Glass Slate) ──────────────────────────────────────────────
 const TiltCard = React.memo(function TiltCard({ children, style, className, onClick }) {
   const cardRef = useRef(null);
@@ -713,7 +713,7 @@ export default function ModuleHub() {
 
         </div>
 
-        {/* ── MODULE GRIDS ── */}
+       {/* ── MODULE GRIDS ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {renderGrid('Investment Memos', <FileText size={24} color={isDark ? '#00f0ff' : '#0ea5e9'} strokeWidth={1.5} />, imList, 'im')}
           {renderGrid('Financial Analysis', <BarChart3 size={24} color="#22c55e" strokeWidth={1.5} />, fsaList, 'fsa')}
@@ -721,16 +721,17 @@ export default function ModuleHub() {
           {renderGrid('Bank Statements', <Building2 size={24} color="#a855f7" strokeWidth={1.5} />, bsaList, 'bsa')}
         </div>
 
-        {/* <-- ADDED: Task Board Modal Render --> */}
-        {activeOpsImId && (
-          <IMTaskBoard
-            imId={activeOpsImId}
-            projectId={projectId}
-            isDark={isDark}
-            onClose={() => setActiveOpsImId(null)}
-          />
-        )}
-      </main>
+      </main> {/* <--- MOVE THIS UP HERE */}
+
+      {/* <-- MOVED: Task Board Modal Render is now OUTSIDE of <main> --> */}
+      {activeOpsImId && (
+        <IMTaskBoard
+          imId={activeOpsImId}
+          projectId={projectId}
+          isDark={isDark}
+          onClose={() => setActiveOpsImId(null)}
+        />
+      )}
     </div>
   );
 }
