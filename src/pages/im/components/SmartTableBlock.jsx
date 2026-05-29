@@ -889,7 +889,7 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 6px', height: '100%' }}>
             {guideToggle}
             {guidePanel}
-            <div style={{ padding: '8px 10px', color: t.fixedText, fontSize: '0.8rem', fontWeight: 700, height: '100%', display: 'flex', alignItems: 'center' }}>{cell.text || ''}</div>
+            <div style={{ padding: '8px 10px', color: t.fixedText, fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>{cell.text || ''}</div>
           </div>
         );
       case 'computed':
@@ -897,7 +897,7 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 6px', height: '100%' }}>
             {guideToggle}
             {guidePanel}
-            <div style={{ padding: '8px 10px', color: t.computedText, fontSize: '0.85rem', fontWeight: 600, fontFamily: 'monospace', height: '100%', display: 'flex', alignItems: 'center' }}>{evaluateFormula(cell.formula, rIdx, contextRows)}</div>
+            <div style={{ padding: '8px 10px', color: t.computedText, fontSize: '0.85rem', fontWeight: 600, fontFamily: 'monospace', display: 'flex', alignItems: 'center' }}>{evaluateFormula(cell.formula, rIdx, contextRows)}</div>
           </div>
         );
       
