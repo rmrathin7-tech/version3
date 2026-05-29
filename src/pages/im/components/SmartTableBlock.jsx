@@ -885,16 +885,31 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
 
     switch (cell.cellType) {
       case 'fixed':
-        return <div style={{ padding: '8px 10px', color: t.fixedText, fontSize: '0.8rem', fontWeight: 700, height: '100%', display: 'flex', alignItems: 'center' }}>{cell.text || ''}</div>;
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 6px', height: '100%' }}>
+            {guideToggle}
+            {guidePanel}
+            <div style={{ padding: '8px 10px', color: t.fixedText, fontSize: '0.8rem', fontWeight: 700, height: '100%', display: 'flex', alignItems: 'center' }}>{cell.text || ''}</div>
+          </div>
+        );
       case 'computed':
-        return <div style={{ padding: '8px 10px', color: t.computedText, fontSize: '0.85rem', fontWeight: 600, fontFamily: 'monospace', height: '100%', display: 'flex', alignItems: 'center' }}>{evaluateFormula(cell.formula, rIdx, contextRows)}</div>;
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 6px', height: '100%' }}>
+            {guideToggle}
+            {guidePanel}
+            <div style={{ padding: '8px 10px', color: t.computedText, fontSize: '0.85rem', fontWeight: 600, fontFamily: 'monospace', height: '100%', display: 'flex', alignItems: 'center' }}>{evaluateFormula(cell.formula, rIdx, contextRows)}</div>
+          </div>
+        );
       
       case 'mixed': {
         const parts  = (cell.template || '').split(/(\[[^\]]+\])/g);
         const inputs = Array.isArray(val) ? val : [];
         let inputIdx = 0;
         return (
-          <div style={{ padding: '8px 10px', lineHeight: 1.8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 6px' }}>
+            {guideToggle}
+            {guidePanel}
+            <div style={{ padding: '8px 10px', lineHeight: 1.8 }}>
             <style>{`.mixed-inline-input:empty::before { content: attr(data-placeholder); color: ${t.textMuted}; pointer-events: none; opacity: 0.6; } .mixed-inline-input:focus { border-color: ${t.accent} !important; box-shadow: 0 0 0 2px rgba(239,68,68,0.15); }`}</style>
             {parts.map((part, pi) => {
               if (/^\[.+\]$/.test(part)) {
@@ -906,6 +921,7 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
               }
               return <span key={pi} style={{ color: t.textMuted, fontSize: '0.85rem' }}>{part}</span>;
             })}
+            </div>
           </div>
         );
       }
@@ -922,6 +938,8 @@ case 'smart-select': {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px' }}>
+      {guideToggle}
+      {guidePanel}
       <select
         value={valObj.selected}
         onChange={handleSelect}
@@ -937,7 +955,7 @@ case 'smart-select': {
         }}
         {...focusHandlers}
       >
-        <option value="" style={{ color: t.textMuted }}>Select…</option>
+        <option value="" style={{ color: t.textMuted }}>{usePlaceholderGuide ? 'Select…' : (cellPlaceholder || 'Select…')}</option>
         {conditions.map((cond, i) => (
           <option key={i} value={cond.label}>{cond.label}</option>
         ))}
@@ -1022,6 +1040,8 @@ case 'smart-select': {
           const optionStyle = { background: isDark ? '#1f2937' : '#ffffff', color: t.text };
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px 6px' }}>
+              {guideToggle}
+              {guidePanel}
               <select value={isCustom ? '__custom__' : val}
                 onChange={e => { if (e.target.value === '__custom__') { onValChange('__custom__'); } else { onValChange(e.target.value); setCustomValues(prev => { const n = { ...prev }; delete n[customKey]; return n; }); } }}
                 disabled={isProtectedRow || !!lockedBy}

@@ -1401,6 +1401,21 @@ const moveBlockToSection = (blockId, targetSectionId) => {
                       </select>
                     </div>
 
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={lbl}>Placeholder</label>
+                      <input
+                        style={inp}
+                        type="text"
+                        value={activeCellData.placeholder || ''}
+                        onChange={e => updateTableCell('placeholder', e.target.value)}
+                        placeholder="e.g. Enter value…"
+                      />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: T.text, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={!!activeCellData.showPlaceholderAsGuide} onChange={e => updateTableCell('showPlaceholderAsGuide', e.target.checked)} />
+                        Show placeholder as a guide in workspace
+                      </label>
+                    </div>
+
                     {activeCellData.cellType === 'fixed' && (
                       <div>
                         <label style={lbl}>Fixed Text</label>
@@ -1467,17 +1482,6 @@ const moveBlockToSection = (blockId, targetSectionId) => {
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: T.text, cursor: 'pointer', marginTop: '10px' }}>
                               <input type="checkbox" checked={!!activeCellData.allowCustom} onChange={e => updateTableCell('allowCustom', e.target.checked)} />
                               Allow users to add custom options
-                            </label>
-                          </div>
-                        )}
-
-                        {activeCellData.inputType !== 'select' && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={lbl}>Placeholder</label>
-                            <input style={inp} type="text" value={activeCellData.placeholder || ''} onChange={e => updateTableCell('placeholder', e.target.value)} placeholder="e.g. Enter value…" />
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: T.text, cursor: 'pointer' }}>
-                              <input type="checkbox" checked={!!activeCellData.showPlaceholderAsGuide} onChange={e => updateTableCell('showPlaceholderAsGuide', e.target.checked)} />
-                              Show placeholder as a guide in workspace
                             </label>
                           </div>
                         )}
