@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Kanban, ListTree, Plus, X, Search, Clock, 
   CheckCircle2, CircleDashed, ArrowRight,
@@ -42,6 +42,10 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
   const [newTask, setNewTask] = useState({ title: '', assignee: '', reviewer: '', linkedSections: [] });
   const [expandedComments, setExpandedComments] = useState({});
 
+  // Canvas Refs
+  const canvasRef = useRef(null);
+  const mouseRef = useRef({ x: -1000, y: -1000 });
+
   const T = useMemo(() => ({
     bg:         isDark ? '#060910' : '#f1f5f9',
     surface:    isDark ? '#0d1117' : '#ffffff',
@@ -54,35 +58,108 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
     amber:      '#f59e0b',
   }), [isDark]);
 
+  // ── INTERACTIVE CANVAS ENGINE ──
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { alpha: true });
+    let raf;
+    const particles = [];
+    const numParticles = window.innerWidth > 1024 ? 90 : 40;
+
+    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    window.addEventListener('resize', resize); resize();
+    
+    const onMouseMove = (e) => { mouseRef.current = { x: e.clientX, y: e.clientY }; };
+    window.addEventListener('mousemove', onMouseMove);
+
+    for(let i = 0; i < numParticles; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: (Math.random() - 0.5) * 1.2,
+        size: Math.random() * 2 + 1,
+        color: Math.random() > 0.5 
+          ? (isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.3)')  // Red Accent
+          : (isDark ? 'rgba(59, 130, 246, 0.4)' : 'rgba(14, 165, 233, 0.3)') // Blue Tech
+      });
+    }
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const mx = mouseRef.current.x;
+      const my = mouseRef.current.y;
+
+      particles.forEach((p, i) => {
+        const dx = mx - p.x;
+        const dy = my - p.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        // Mouse Repel Physics
+        if (dist < 180) {
+          p.x -= dx * 0.03;
+          p.y -= dy * 0.03;
+        }
+
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+
+        // Draw connections
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const d = Math.hypot(p.x - p2.x, p.y - p2.y);
+          if (d < 130) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = isDark ? `rgba(100, 116, 139, ${0.15 - d/800})` : `rgba(148, 163, 184, ${0.2 - d/600})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+      });
+      raf = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', onMouseMove);
+      cancelAnimationFrame(raf);
+    };
+  }, [isDark]);
+
+
   // ── DATA SUBSCRIPTIONS ──
   useEffect(() => {
     if (!imId) return;
-
     const unsubs = [];
-
     unsubs.push(onSnapshot(doc(db, 'im-task-config', imId), (snap) => {
       if (snap.exists()) setColumns(snap.data().columns || []);
       else setDoc(doc(db, 'im-task-config', imId), { columns: DEFAULT_COLUMNS });
     }));
-
     unsubs.push(onSnapshot(doc(db, 'config', 'im-schema'), (snap) => {
       if (snap.exists()) setSchema(snap.data().sections || []);
     }));
-
     unsubs.push(onSnapshot(query(collection(db, 'im-tasks'), where('imId', '==', imId)), (snap) => {
       setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }));
-
     unsubs.push(onSnapshot(collection(db, 'workspace-users'), (snap) => {
       setWorkspaceUsers(snap.docs.map(d => d.data()));
     }));
-
     unsubs.push(onSnapshot(query(collection(db, 'im-comments'), where('imId', '==', imId)), (snap) => {
       setComments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }));
-
     return () => unsubs.forEach(u => u());
   }, [imId]);
+
 
   // ── COMPUTED PROPERTIES ──
   const flatSections = useMemo(() => {
@@ -213,54 +290,57 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
   // ── RENDERERS ──
 
   const renderToolbar = () => (
-    // FIX 1: Added flexWrap: 'wrap' to fix toolbar overflow on smaller screens
-    <div style={{ padding: '0 32px 20px', display: 'flex', flexWrap: 'wrap', gap: '16px', borderBottom: `1px solid ${T.border}`, marginBottom: '24px' }}>
-      
-      {/* Search */}
-      <div style={{ flex: '1 1 250px', position: 'relative' }}>
-        <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
-        <input 
-          type="text" placeholder="Search tasks by title..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-          style={{ width: '100%', padding: '10px 14px 10px 40px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.surface, color: T.text, outline: 'none', fontSize: '0.85rem' }}
-        />
-      </div>
+    <div style={{ padding: '0 32px 20px', borderBottom: `1px solid ${T.border}`, marginBottom: '24px', position: 'relative', zIndex: 10 }}>
+      {/* BULLETPROOF WRAPPER: Flex container handling wrapping properly */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
+        
+        {/* Search */}
+        <div style={{ flex: '1 1 300px', minWidth: '200px', position: 'relative' }}>
+          <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
+          <input 
+            type="text" placeholder="Search tasks by title..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px 10px 40px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.surface, color: T.text, outline: 'none', fontSize: '0.85rem' }}
+          />
+        </div>
 
-      {/* Assignee Filter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.surface, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 12px', flex: '0 0 auto' }}>
-        <UserCheck size={16} color={T.textMuted} />
-        <select className="glass-select" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} style={{ background: 'transparent', border: 'none', color: filterAssignee ? T.text : T.textMuted, fontSize: '0.85rem', outline: 'none', cursor: 'pointer', padding: '10px 0' }}>
-          <option value="">All Assignees</option>
-          {workspaceUsers.map(u => <option key={u.userId} value={u.userId}>{u.email.split('@')[0]}</option>)}
-        </select>
-      </div>
+        {/* Assignee Filter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.surface, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 12px', height: '40px', flexShrink: 0 }}>
+          <UserCheck size={16} color={T.textMuted} />
+          <select className="glass-select" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)} style={{ background: 'transparent', border: 'none', color: filterAssignee ? T.text : T.textMuted, fontSize: '0.85rem', outline: 'none', cursor: 'pointer', height: '100%', maxWidth: '140px' }}>
+            <option value="">All Assignees</option>
+            {workspaceUsers.map(u => <option key={u.userId} value={u.userId}>{u.email.split('@')[0]}</option>)}
+          </select>
+        </div>
 
-      {/* Reviewer Filter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.surface, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 12px', flex: '0 0 auto' }}>
-        <Eye size={16} color={T.textMuted} />
-        <select className="glass-select" value={filterReviewer} onChange={e => setFilterReviewer(e.target.value)} style={{ background: 'transparent', border: 'none', color: filterReviewer ? T.text : T.textMuted, fontSize: '0.85rem', outline: 'none', cursor: 'pointer', padding: '10px 0' }}>
-          <option value="">All Reviewers</option>
-          {workspaceUsers.map(u => <option key={u.userId} value={u.userId}>{u.email.split('@')[0]}</option>)}
-        </select>
-      </div>
+        {/* Reviewer Filter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.surface, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 12px', height: '40px', flexShrink: 0 }}>
+          <Eye size={16} color={T.textMuted} />
+          <select className="glass-select" value={filterReviewer} onChange={e => setFilterReviewer(e.target.value)} style={{ background: 'transparent', border: 'none', color: filterReviewer ? T.text : T.textMuted, fontSize: '0.85rem', outline: 'none', cursor: 'pointer', height: '100%', maxWidth: '140px' }}>
+            <option value="">All Reviewers</option>
+            {workspaceUsers.map(u => <option key={u.userId} value={u.userId}>{u.email.split('@')[0]}</option>)}
+          </select>
+        </div>
 
-      {/* Clear Filters */}
-      {(searchQuery || filterAssignee || filterReviewer) && (
-        <button onClick={() => { setSearchQuery(''); setFilterAssignee(''); setFilterReviewer(''); }} style={{ flex: '0 0 auto', background: 'transparent', border: `1px dashed ${T.border}`, color: T.textMuted, padding: '0 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
-          Clear
-        </button>
-      )}
+        {/* Clear Filters */}
+        {(searchQuery || filterAssignee || filterReviewer) && (
+          <button onClick={() => { setSearchQuery(''); setFilterAssignee(''); setFilterReviewer(''); }} style={{ height: '40px', flexShrink: 0, background: 'transparent', border: `1px dashed ${T.border}`, color: T.textMuted, padding: '0 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
+            Clear
+          </button>
+        )}
+
+      </div>
     </div>
   );
 
   const renderKanban = () => (
-    <div style={{ display: 'flex', gap: '20px', height: '100%', overflowX: 'auto', padding: '0 32px 20px', position: 'relative', zIndex: 1 }}>
+    <div style={{ display: 'flex', gap: '20px', height: '100%', overflowX: 'auto', padding: '0 32px 20px', position: 'relative', zIndex: 10 }}>
       {columns.map(col => {
         const colTasks = filteredTasks.filter(t => t.status === col.id);
         
         return (
           <div 
             key={col.id} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, col.id)}
-            style={{ flex: '0 0 300px', display: 'flex', flexDirection: 'column', background: T.surface, border: `1px solid ${T.border}`, borderRadius: '12px', transition: 'background 0.2s ease', backdropFilter: 'blur(10px)' }}
+            style={{ flex: '0 0 300px', display: 'flex', flexDirection: 'column', background: T.surface, border: `1px solid ${T.border}`, borderRadius: '12px', transition: 'background 0.2s ease', backdropFilter: 'blur(16px)' }}
           >
             {/* Column Header */}
             <div style={{ padding: '16px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -343,7 +423,7 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
             const label = prompt("Enter the name of the new stage:");
             if (label?.trim()) await updateDoc(doc(db, 'im-task-config', imId), { columns: [...columns, { id: `col_${Date.now()}`, label: label.trim(), color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)] }] });
           }}
-          style={{ height: '56px', borderRadius: '12px', border: `1px dashed ${T.border}`, background: T.surface3, color: T.textMuted, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s', backdropFilter: 'blur(4px)' }}
+          style={{ height: '56px', borderRadius: '12px', border: `1px dashed ${T.border}`, background: T.surface3, color: T.textMuted, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s', backdropFilter: 'blur(16px)' }}
           onMouseEnter={e => { e.currentTarget.style.color = T.text; e.currentTarget.style.borderColor = T.textMuted; }}
           onMouseLeave={e => { e.currentTarget.style.color = T.textMuted; e.currentTarget.style.borderColor = T.border; }}
         >
@@ -354,8 +434,8 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
   );
 
   const renderMatrix = () => (
-    <div style={{ padding: '0 32px 40px', position: 'relative', zIndex: 1 }}>
-      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)' }}>
+    <div style={{ padding: '0 32px 40px', position: 'relative', zIndex: 10 }}>
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.05)', backdropFilter: 'blur(16px)' }}>
         
         {/* Matrix Header */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', padding: '16px 24px', background: T.surface2, borderBottom: `1px solid ${T.border}`, fontSize: '0.7rem', fontWeight: 800, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -399,7 +479,7 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
                           className="glass-select"
                           value={activeTask.assignee?.uid || ''} 
                           onChange={(e) => handleUpdateTaskField(activeTask.id, 'assignee', e.target.value)}
-                          style={{ width: '90%', padding: '6px', borderRadius: '6px', background: T.surface2, border: `1px solid ${T.border}`, color: activeTask.assignee ? T.text : T.textMuted, fontSize: '0.8rem', outline: 'none', cursor: 'pointer' }}
+                          style={{ width: '90%', padding: '6px', borderRadius: '6px', background: T.surface2, border: `1px solid ${T.border}`, color: activeTask.assignee ? T.text : T.textMuted, fontSize: '0.8rem', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
                         >
                           <option value="">Unassigned</option>
                           {workspaceUsers.map(u => <option key={u.userId} value={u.userId}>{u.email.split('@')[0]}</option>)}
@@ -411,7 +491,7 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
                           className="glass-select"
                           value={activeTask.reviewer?.uid || ''} 
                           onChange={(e) => handleUpdateTaskField(activeTask.id, 'reviewer', e.target.value)}
-                          style={{ width: '90%', padding: '6px', borderRadius: '6px', background: T.surface2, border: `1px solid ${T.border}`, color: activeTask.reviewer ? T.text : T.textMuted, fontSize: '0.8rem', outline: 'none', cursor: 'pointer' }}
+                          style={{ width: '90%', padding: '6px', borderRadius: '6px', background: T.surface2, border: `1px solid ${T.border}`, color: activeTask.reviewer ? T.text : T.textMuted, fontSize: '0.8rem', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
                         >
                           <option value="">No Reviewer</option>
                           {workspaceUsers.map(u => <option key={u.userId} value={u.userId}>{u.email.split('@')[0]}</option>)}
@@ -423,7 +503,7 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
                           className="glass-select"
                           value={activeTask.status} 
                           onChange={(e) => handleUpdateStatus(activeTask.id, e.target.value)}
-                          style={{ width: '90%', padding: '6px', borderRadius: '6px', background: colDef ? `${colDef.color}15` : T.surface2, border: colDef ? `1px solid ${colDef.color}40` : `1px solid ${T.border}`, color: colDef ? colDef.color : T.text, fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
+                          style={{ width: '90%', padding: '6px', borderRadius: '6px', background: colDef ? `${colDef.color}15` : T.surface2, border: colDef ? `1px solid ${colDef.color}40` : `1px solid ${T.border}`, color: colDef ? colDef.color : T.text, fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
                         >
                           {columns.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                         </select>
@@ -483,12 +563,11 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: T.bg, display: 'flex', flexDirection: 'column', animation: 'imFadeIn 0.2s ease-out', overflow: 'hidden' }}>
       
-      {/* FIX 2: Interactive Moving Ambient Effects */}
-      <div className="ambient-orb orb-1" style={{ background: isDark ? 'radial-gradient(circle, rgba(239,68,68,0.06) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(239,68,68,0.09) 0%, transparent 70%)' }} />
-      <div className="ambient-orb orb-2" style={{ background: isDark ? 'radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(59,130,246,0.09) 0%, transparent 70%)' }} />
-      <div className="ambient-orb orb-3" style={{ background: isDark ? 'radial-gradient(circle, rgba(16,185,129,0.05) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)' }} />
+      {/* BACKGROUND CANVAS EFFECT */}
+      <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
 
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* FOREGROUND UI WRAPPER */}
+      <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', height: '100%' }}>
         {/* HEADER */}
         <header style={{ height: '70px', padding: '0 32px', background: T.surface, borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
@@ -536,20 +615,20 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '60vh', overflowY: 'auto' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', marginBottom: '8px' }}>Task Description</label>
-                <input type="text" autoFocus placeholder="e.g. Draft Q3 Financial Review" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, outline: 'none', fontSize: '0.9rem' }} />
+                <input type="text" autoFocus placeholder="e.g. Draft Q3 Financial Review" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: '8px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, outline: 'none', fontSize: '0.9rem' }} />
               </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', marginBottom: '8px' }}>Assign To</label>
-                  <select className="glass-select" value={newTask.assignee} onChange={e => setNewTask({...newTask, assignee: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, outline: 'none', fontSize: '0.9rem', cursor: 'pointer' }}>
+                  <select className="glass-select" value={newTask.assignee} onChange={e => setNewTask({...newTask, assignee: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: '8px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, outline: 'none', fontSize: '0.9rem', cursor: 'pointer' }}>
                     <option value="">Unassigned</option>
                     {workspaceUsers.map(u => <option key={u.userId} value={u.userId}>{u.email}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', marginBottom: '8px' }}>Reviewer</label>
-                  <select className="glass-select" value={newTask.reviewer} onChange={e => setNewTask({...newTask, reviewer: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, outline: 'none', fontSize: '0.9rem', cursor: 'pointer' }}>
+                  <select className="glass-select" value={newTask.reviewer} onChange={e => setNewTask({...newTask, reviewer: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: '8px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, outline: 'none', fontSize: '0.9rem', cursor: 'pointer' }}>
                     <option value="">No Reviewer</option>
                     {workspaceUsers.map(u => <option key={u.userId} value={u.userId}>{u.email}</option>)}
                   </select>
@@ -579,7 +658,7 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
 
       {/* ── CSS INJECTIONS ── */}
       <style>{`
-        /* FIX 1b: Fix the white background on HTML options natively */
+        /* FIX: Ensure dropdown options render correctly without white background */
         .glass-select option {
           background-color: ${T.surface};
           color: ${T.text};
@@ -589,22 +668,6 @@ export default function IMTaskBoard({ imId, projectId, isDark = true, onClose })
           border-color: ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'} !important;
           box-shadow: 0 8px 24px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.1)'} !important;
         }
-
-        /* FIX 2: Ambient Background Orbs */
-        .ambient-orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(40px);
-          pointer-events: none;
-          z-index: 0;
-        }
-        .orb-1 { width: 40vw; height: 40vw; top: -10%; left: -10%; animation: float1 18s ease-in-out infinite alternate; }
-        .orb-2 { width: 35vw; height: 35vw; bottom: -5%; right: -5%; animation: float2 22s ease-in-out infinite alternate-reverse; }
-        .orb-3 { width: 25vw; height: 25vw; top: 40%; left: 50%; animation: float3 25s ease-in-out infinite alternate; }
-
-        @keyframes float1 { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(100px, 50px) scale(1.1); } }
-        @keyframes float2 { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(-80px, -60px) scale(1.05); } }
-        @keyframes float3 { 0% { transform: translate(-50%, -50%) scale(1); } 100% { transform: translate(-30%, -70%) scale(1.2); } }
       `}</style>
     </div>
   );
