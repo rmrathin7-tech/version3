@@ -3,15 +3,17 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Settings, Sun, Moon, Menu,
   CheckCircle2, ShieldAlert, Loader2, ChevronDown, Lock, PanelLeftClose,
-  MessageSquare,
+  MessageSquare, Kanban, User // <-- Added Kanban and User icons
 } from 'lucide-react';
 import { auth, db } from '../../firebase.js';
 import {
-  doc, onSnapshot, updateDoc, serverTimestamp, setDoc, collection
+  doc, onSnapshot, updateDoc, serverTimestamp, setDoc, collection,
+  query, where // <-- Added query and where for the tasks listener
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import BlockRegistry from './components/BlockRegistry.jsx';
 import CommentsSidebar from './components/CommentsSidebar.jsx';
+import IMTaskBoard from './components/IMTaskBoard.jsx'; // <-- Imported the Task Board
 
 // ── AVATAR COLOR POOL ──────────────────────────────────────────────────────
 const AVATAR_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ec4899','#06b6d4'];
@@ -42,6 +44,10 @@ export default function IMWorkspace() {
   const [visibleBlocks, setVisibleBlocks] = useState(new Set());
   const [myLockedBlock, setMyLockedBlock] = useState(null);
   const [commentsSidebarOpen, setCommentsSidebarOpen] = useState(false);
+  
+  // <-- ADDED: Task Board State
+  const [tasks, setTasks] = useState([]);
+  const [isTaskBoardOpen, setIsTaskBoardOpen] = useState(false);
 
   const saveTimers = useRef({});
   const savedTimers = useRef({});
@@ -103,6 +109,15 @@ export default function IMWorkspace() {
     if (!imId) return;
     return onSnapshot(doc(db, 'investment-memos', imId), (snap) => {
       if (snap.exists()) setImData(prev => ({ ...prev, ...(snap.data().data || {}) }));
+    });
+  }, [imId]);
+
+  // <-- ADDED: Fetch Tasks for this IM
+  useEffect(() => {
+    if (!imId) return;
+    const q = query(collection(db, 'im-tasks'), where('imId', '==', imId));
+    return onSnapshot(q, (snap) => {
+      setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
   }, [imId]);
 
@@ -487,6 +502,27 @@ export default function IMWorkspace() {
 
               <div style={{ width: 1, height: 18, background: T.border, margin: '0 2px' }} />
 
+              {/* <-- ADDED: Kanban Task Board Button --> */}
+              <button
+                onClick={() => setIsTaskBoardOpen(p => !p)}
+                title="Operations Board"
+                style={{
+                  background: isTaskBoardOpen ? T.amberDim : 'none',
+                  border: 'none',
+                  color: isTaskBoardOpen ? T.amber : T.textMuted,
+                  cursor: 'pointer', padding: 6, borderRadius: 6,
+                  display: 'flex', alignItems: 'center',
+                  transition: 'color 0.15s, background 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = T.surface3; e.currentTarget.style.color = T.text; }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = isTaskBoardOpen ? T.amberDim : 'transparent';
+                  e.currentTarget.style.color = isTaskBoardOpen ? T.amber : T.textMuted;
+                }}
+              >
+                <Kanban size={15} />
+              </button>
+
               <button
                 onClick={() => setCommentsSidebarOpen(p => !p)}
                 title="Comments"
@@ -594,6 +630,31 @@ export default function IMWorkspace() {
                     {activeSectionSchema.heading || activeSectionSchema.navLabel}
                   </h2>
                 </div>
+
+                {/* <-- ADDED: Task Assignment Pill Below Title --> */}
+                {(() => {
+                  const sectionTask = tasks.find(t => t.linkedSections?.includes(activeSectionSchema.key));
+                  if (!sectionTask) return null;
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '0 0 16px 18px', padding: '6px 12px', background: T.surface2, borderRadius: '8px', border: `1px solid ${T.border}`, width: 'fit-content' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: T.textMuted, fontWeight: 600 }}>
+                        <User size={13} /> {sectionTask.assignee ? sectionTask.assignee.email.split('@')[0] : 'Unassigned'}
+                      </div>
+                      <div style={{ width: '1px', height: '14px', background: T.border }} />
+                      <select 
+                        value={sectionTask.status}
+                        onChange={(e) => updateDoc(doc(db, 'im-tasks', sectionTask.id), { status: e.target.value })}
+                        style={{ background: 'transparent', border: 'none', color: T.text, fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="drafting">Drafting</option>
+                        <option value="reviewing">Reviewing</option>
+                        <option value="approved">Approved</option>
+                      </select>
+                    </div>
+                  );
+                })()}
+
                 {activeSectionSchema.desc && (
                   <p style={{ margin: '0 0 0 18px', fontSize: 13, color: T.textMuted, lineHeight: 1.6, maxWidth: 560 }}>
                     {activeSectionSchema.desc}
@@ -643,6 +704,16 @@ export default function IMWorkspace() {
         isOpen={commentsSidebarOpen}
         onClose={() => setCommentsSidebarOpen(false)}
       />
+
+      {/* <-- ADDED: Task Board Modal Component --> */}
+      {isTaskBoardOpen && (
+        <IMTaskBoard
+          imId={imId}
+          projectId={projectId}
+          isDark={isDark}
+          onClose={() => setIsTaskBoardOpen(false)}
+        />
+      )}
 
       <style>{`
         @keyframes imSpin    { from { transform: rotate(0deg); }   to   { transform: rotate(360deg); } }

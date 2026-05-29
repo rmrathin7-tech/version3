@@ -4,7 +4,7 @@ import {
   ArrowLeft, Search, Users, Sun, Moon, LogOut, 
   Plus, FileText, BarChart3, Network, Building2,
   CheckCircle2, MessageSquare, Trash2, Edit3, Globe,
-  ShieldAlert, Sparkles, RefreshCw
+  ShieldAlert, Sparkles, RefreshCw, Kanban // <-- ADDED Kanban
 } from 'lucide-react';
 import { auth, db } from '../../firebase';
 import { 
@@ -12,6 +12,7 @@ import {
   deleteDoc, doc, serverTimestamp, setDoc, orderBy, getDoc 
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import IMTaskBoard from './im/components/IMTaskBoard.jsx'; // <-- ADDED IMTaskBoard import
 
 // ── 3D TILT CARD (Glass Slate) ──────────────────────────────────────────────
 const TiltCard = React.memo(function TiltCard({ children, style, className, onClick }) {
@@ -124,6 +125,7 @@ export default function ModuleHub() {
   const [fsaData, setFsaData] = useState({ domain: '', entityType: '' });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [updateInput, setUpdateInput] = useState('');
+  const [activeOpsImId, setActiveOpsImId] = useState(null); // <-- ADDED Task Board State
 
   const isDark = theme === 'dark';
   const canvasRef = useRef(null);
@@ -505,9 +507,23 @@ export default function ModuleHub() {
                       )}
                     </div>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); setDeleteTarget({id: item.id, type}); setActiveModal('delete'); }} style={{ background: 'transparent', border: 'none', color: isDark ? '#64748b' : '#94a3b8', cursor: 'pointer', padding: '4px', borderRadius: '6px' }} className="action-hover">
-                    <Trash2 size={14} />
-                  </button>
+                  
+                  {/* <-- ADDED: Ops Kanban Button for IMs --> */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {type === 'im' && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setActiveOpsImId(item.id); }} 
+                        style={{ display: 'flex', alignItems: 'center', gap: '4px', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: 'none', color: isDark ? '#94a3b8' : '#64748b', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.2s' }} 
+                        className="glass-btn"
+                      >
+                        <Kanban size={12} /> Ops
+                      </button>
+                    )}
+                    <button onClick={(e) => { e.stopPropagation(); setDeleteTarget({id: item.id, type}); setActiveModal('delete'); }} style={{ background: 'transparent', border: 'none', color: isDark ? '#64748b' : '#94a3b8', cursor: 'pointer', padding: '4px', borderRadius: '6px' }} className="action-hover">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
                 </div>
                 <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`, display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: isDark ? '#64748b' : '#94a3b8' }}>
                   <span>{formatTime(item.createdAt)}</span>
@@ -706,6 +722,15 @@ export default function ModuleHub() {
           {renderGrid('Bank Statements', <Building2 size={24} color="#a855f7" strokeWidth={1.5} />, bsaList, 'bsa')}
         </div>
 
+        {/* <-- ADDED: Task Board Modal Render --> */}
+        {activeOpsImId && (
+          <IMTaskBoard
+            imId={activeOpsImId}
+            projectId={projectId}
+            isDark={isDark}
+            onClose={() => setActiveOpsImId(null)}
+          />
+        )}
       </main>
     </div>
   );
