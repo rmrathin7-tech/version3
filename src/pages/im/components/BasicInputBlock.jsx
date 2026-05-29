@@ -43,6 +43,7 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
   const [isFocused, setIsFocused] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState(Array.isArray(value) ? value : []);
+  const [showFullPlaceholder, setShowFullPlaceholder] = useState(false); // NEW STATE
   const typingTimeout = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -422,8 +423,24 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
             boxShadow: isFocused ? focusStyle.boxShadow : 'none'
           }}
         >
-          <style>{`.mixed-inline-input:empty::before { content: attr(data-placeholder); color: ${t.textMuted}; pointer-events: none; opacity: 0.6; } .mixed-inline-input:focus { border-color: ${t.accent} !important; box-shadow: 0 0 0 2px rgba(239,68,68,0.15); }`}</style>
-          {parts.map((part, pi) => {
+<style>{`
+  .mixed-inline-input:empty::before { 
+    content: attr(data-placeholder); 
+    color: ${t.textMuted}; 
+    pointer-events: none; 
+    opacity: 0.6; 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: bottom;
+  } 
+  .mixed-inline-input:focus { 
+    border-color: ${t.accent} !important; 
+    box-shadow: 0 0 0 2px rgba(239,68,68,0.15); 
+  }
+`}</style>          {parts.map((part, pi) => {
             if (/^\[.+\]$/.test(part)) {
               const idx      = inputIdx++;
               const inner    = part.slice(1, -1);
@@ -461,13 +478,33 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
     );
   };
 
-  return (
+return (
     <BlockWrapper block={block} lockedBy={lockedBy} isDark={isDark}>
       <div style={{ marginBottom: 4 }}>
-      
+        
+        {/* Toggle Button for Long Placeholders */}
+        {block.placeholder && block.placeholder.length > 50 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <button 
+              onClick={() => setShowFullPlaceholder(!showFullPlaceholder)}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: t.accent, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <Info size={12} /> {showFullPlaceholder ? 'Hide Guide' : 'Show Guide'}
+            </button>
+          </div>
+        )}
+
         {/* The input */}
         {renderInput()}
-        {/* Guide text below the field */}
+
+        {/* The Revealable Placeholder Guide */}
+        {showFullPlaceholder && (
+          <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 6, fontSize: 12, color: t.text, background: t.surface, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5 }}>
+            {block.placeholder}
+          </div>
+        )}
+
+        {/* Existing Guide text below the field */}
         {block.guide && block.type !== 'instruction' && (
           <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 6, fontSize: 12, color: t.guideText, background: t.guide, borderLeft: `3px solid ${t.guideLeft}`, lineHeight: 1.5 }}>
             {block.guide}

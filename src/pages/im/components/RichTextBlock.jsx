@@ -776,8 +776,14 @@ export default function RichTextBlock({
         .ql-toolbar.ql-snow { border: none !important; }
         .ql-container.ql-snow { border: none !important; }
         .im-quill-canvas .ql-editor { min-height: ${block.minHeight || '160px'}; color: ${t.text} !important; }
-        .im-quill-canvas .ql-editor.ql-blank::before { color: ${t.textMuted} !important; font-style: italic; }
-        .ql-snow .ql-stroke { stroke: ${t.textMuted} !important; }
+.im-quill-canvas .ql-editor.ql-blank::before { 
+  color: ${t.textMuted} !important; 
+  font-style: italic; 
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  right: 24px; 
+}        .ql-snow .ql-stroke { stroke: ${t.textMuted} !important; }
         .ql-snow .ql-fill   { fill:   ${t.textMuted} !important; }
         .ql-snow.ql-toolbar button:hover .ql-stroke,
         .ql-snow.ql-toolbar button.ql-active .ql-stroke { stroke: #ef4444 !important; }
