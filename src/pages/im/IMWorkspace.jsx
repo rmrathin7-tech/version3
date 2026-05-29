@@ -45,8 +45,9 @@ export default function IMWorkspace() {
   const [myLockedBlock, setMyLockedBlock] = useState(null);
   const [commentsSidebarOpen, setCommentsSidebarOpen] = useState(false);
   
-  // <-- ADDED: Task Board State
+  // <-- ADDED: Task Board & Dynamic Columns State
   const [tasks, setTasks] = useState([]);
+  const [taskColumns, setTaskColumns] = useState([]);
   const [isTaskBoardOpen, setIsTaskBoardOpen] = useState(false);
 
   const saveTimers = useRef({});
@@ -118,6 +119,14 @@ export default function IMWorkspace() {
     const q = query(collection(db, 'im-tasks'), where('imId', '==', imId));
     return onSnapshot(q, (snap) => {
       setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+  }, [imId]);
+
+  // <-- ADDED: Fetch Dynamic Task Columns
+  useEffect(() => {
+    if (!imId) return;
+    return onSnapshot(doc(db, 'im-task-config', imId), (snap) => {
+      if (snap.exists()) setTaskColumns(snap.data().columns || []);
     });
   }, [imId]);
 
@@ -631,7 +640,7 @@ export default function IMWorkspace() {
                   </h2>
                 </div>
 
-                {/* <-- ADDED: Task Assignment Pill Below Title --> */}
+                {/* <-- UPDATED: Dynamic Task Assignment Pill Below Title --> */}
                 {(() => {
                   const sectionTask = tasks.find(t => t.linkedSections?.includes(activeSectionSchema.key));
                   if (!sectionTask) return null;
@@ -646,10 +655,9 @@ export default function IMWorkspace() {
                         onChange={(e) => updateDoc(doc(db, 'im-tasks', sectionTask.id), { status: e.target.value })}
                         style={{ background: 'transparent', border: 'none', color: T.text, fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="drafting">Drafting</option>
-                        <option value="reviewing">Reviewing</option>
-                        <option value="approved">Approved</option>
+                        {taskColumns.map(col => (
+                          <option key={col.id} value={col.id}>{col.label}</option>
+                        ))}
                       </select>
                     </div>
                   );
