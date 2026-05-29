@@ -12,8 +12,7 @@ import {
   deleteDoc, doc, serverTimestamp, setDoc, orderBy, getDoc 
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import IMTaskBoard from './im/components/IMTaskBoard.jsx'; // <-- ADDED IMTaskBoard import
-
+import IMTaskBoard from '../im/components/IMTaskBoard.jsx';
 // ── 3D TILT CARD (Glass Slate) ──────────────────────────────────────────────
 const TiltCard = React.memo(function TiltCard({ children, style, className, onClick }) {
   const cardRef = useRef(null);
