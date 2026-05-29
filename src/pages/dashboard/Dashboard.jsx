@@ -12,6 +12,9 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
+// <-- 1. IMPORT THE NEW GLOBAL BOARD -->
+import GlobalBoard from './GlobalBoard.jsx'; 
+
 
 // ── TYPEWRITER PLACEHOLDER ────────────────────────────────────────────────────
 const PLACEHOLDER_PHRASES = [
@@ -254,10 +257,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   
+  // <-- 2. ADD STATE FOR GLOBAL BOARD -->
+  const [isGlobalBoardOpen, setIsGlobalBoardOpen] = useState(false);
+
   // Canvas tracking
   const mouseRef = useRef({ x: -9999, y: -9999 });
   const trailRef = useRef([]);
-  const ripplesRef = useRef([]); // Stores interactive shockwaves
+  const ripplesRef = useRef([]); 
   
   const isDark = theme === 'dark';
 
@@ -270,7 +276,7 @@ export default function Dashboard() {
   useEffect(() => {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); document.querySelector('.create-input')?.focus(); }
-      if (e.key === 'Escape') { setDeleteTarget(null); setCtxMenu(null); setIsUsersPanelOpen(false); }
+      if (e.key === 'Escape') { setDeleteTarget(null); setCtxMenu(null); setIsUsersPanelOpen(false); setIsGlobalBoardOpen(false); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -725,7 +731,13 @@ export default function Dashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
-          <button className="glass-btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '30px', borderWidth: '1px', borderStyle: 'solid', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500', fontFamily: 'inherit' }}>
+          
+          {/* <-- 3. WIRE THE BOARD BUTTON TO STATE --> */}
+          <button 
+            className="glass-btn" 
+            onClick={() => setIsGlobalBoardOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '30px', borderWidth: '1px', borderStyle: 'solid', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)', background: 'transparent', color: isDark ? '#94a3b8' : '#64748b', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500', fontFamily: 'inherit' }}
+          >
             <LayoutDashboard size={15} /> Board
           </button>
 
@@ -893,6 +905,16 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* <-- 4. RENDER GLOBAL BOARD --> */}
+      {isGlobalBoardOpen && (
+        <GlobalBoard 
+          projects={active} 
+          isDark={isDark} 
+          onClose={() => setIsGlobalBoardOpen(false)} 
+        />
+      )}
+
     </div>
   );
 }
