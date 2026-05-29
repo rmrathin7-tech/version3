@@ -500,7 +500,7 @@ return (
 
         {/* The Revealable Placeholder Guide */}
         {usePlaceholderGuide && showFullPlaceholder && (
-          <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 6, fontSize: 12, color: t.text, background: t.surface, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 6, fontSize: 12, color: t.text, background: t.surface, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
             {placeholderText}
           </div>
         )}

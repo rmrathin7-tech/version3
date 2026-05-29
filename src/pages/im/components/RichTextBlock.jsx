@@ -399,7 +399,7 @@ function FullscreenEditor({ block, value, onChange, onClose, onFocus, onBlur }) 
               <FileText size={13} color="#ef4444" />
               <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, color: '#475569' }}>Field Info</span>
             </div>
-            <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
               {block.desc || block.placeholder || 'No description set.'}
             </div>
           </div>
@@ -713,7 +713,7 @@ export default function RichTextBlock({
             </button>
           </div>
           {showPlaceholderGuide && (
-            <div style={{ padding: '10px 14px', borderRadius: 6, fontSize: 12, color: t.text, background: t.toolbarBg, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5 }}>
+            <div style={{ padding: '10px 14px', borderRadius: 6, fontSize: 12, color: t.text, background: t.toolbarBg, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
               {placeholderText}
             </div>
           )}

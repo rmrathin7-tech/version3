@@ -878,7 +878,7 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
       </div>
     ) : null;
     const guidePanel = isGuideVisible ? (
-      <div style={{ padding: '6px 8px', borderRadius: 6, fontSize: 11, color: t.text, background: t.headerBg, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5 }}>
+      <div style={{ padding: '6px 8px', borderRadius: 6, fontSize: 11, color: t.text, background: t.headerBg, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
         {cellPlaceholder}
       </div>
     ) : null;
