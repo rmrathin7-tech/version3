@@ -45,7 +45,9 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
   const [uploadedFiles, setUploadedFiles] = useState(Array.isArray(value) ? value : []);
   const placeholderText = block.placeholder || block.desc || '';
   const usePlaceholderGuide = !!block.showPlaceholderAsGuide && !!placeholderText;
-  const [showFullPlaceholder, setShowFullPlaceholder] = useState(usePlaceholderGuide);
+  const effectivePlaceholder = usePlaceholderGuide ? '' : placeholderText;
+  const [hiddenGuides, setHiddenGuides] = useState({});
+  const showFullPlaceholder = usePlaceholderGuide && !hiddenGuides[block.id];
   const typingTimeout = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -112,10 +114,6 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
       setLocalValue(value ?? '');
     }
   }, [value, isFocused, isUploading, block.type]);
-
-  useEffect(() => {
-    setShowFullPlaceholder(usePlaceholderGuide);
-  }, [block.id, usePlaceholderGuide, placeholderText]);
 
   // ── DEBOUNCED SAVE ──────────────────────────────────────────────────────
   const debouncedSave = useCallback((val) => {
@@ -205,7 +203,6 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
 
   // ── RENDER ──────────────────────────────────────────────────────────────
   const renderInput = () => {
-const effectivePlaceholder = usePlaceholderGuide ? '' : placeholderText;
 // 1. INSTRUCTION block — read-only note
     if (block.type === 'instruction') {
       return (
@@ -490,7 +487,7 @@ return (
         {usePlaceholderGuide && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
             <button 
-              onClick={() => setShowFullPlaceholder(!showFullPlaceholder)}
+              onClick={() => setHiddenGuides(prev => ({ ...prev, [block.id]: !prev[block.id] }))}
               style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: t.accent, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
             >
               <Info size={12} /> {showFullPlaceholder ? 'Hide Guide' : 'Show Guide'}

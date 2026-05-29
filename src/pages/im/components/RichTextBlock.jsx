@@ -548,7 +548,8 @@ export default function RichTextBlock({
   const [isExpanded, setIsExpanded] = useState(false);
   const placeholderText = block.placeholder || block.desc || '';
   const usePlaceholderGuide = !!block.showPlaceholderAsGuide && !!placeholderText;
-  const [showPlaceholderGuide, setShowPlaceholderGuide] = useState(usePlaceholderGuide);
+  const [hiddenGuides, setHiddenGuides] = useState({});
+  const showPlaceholderGuide = usePlaceholderGuide && !hiddenGuides[block.id];
 
   const t = {
     bg:            isDark ? '#0d1117'                : '#ffffff',
@@ -561,10 +562,6 @@ export default function RichTextBlock({
     subBarBg:      isDark ? '#1f242c'                : '#eff6ff',
     tableBorder:   isDark ? '#64748b'                : '#cbd5e1',
   };
-
-  useEffect(() => {
-    setShowPlaceholderGuide(usePlaceholderGuide);
-  }, [block.id, usePlaceholderGuide, placeholderText]);
 
   // ── COMMENT HELPERS ────────────────────────────────────────────────────────
   const showBubble = useCallback((rect, range) => {
@@ -709,7 +706,7 @@ export default function RichTextBlock({
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
             <button
-              onClick={() => setShowPlaceholderGuide(p => !p)}
+              onClick={() => setHiddenGuides(prev => ({ ...prev, [block.id]: !prev[block.id] }))}
               style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: t.accent, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
             >
               <Info size={12} /> {showPlaceholderGuide ? 'Hide Guide' : 'Show Guide'}
