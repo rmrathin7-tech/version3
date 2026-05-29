@@ -195,6 +195,14 @@ export default function IMWorkspace() {
 
   const activeSectionSchema = useMemo(() =>
     schema.find(s => s.key === activeSection), [schema, activeSection]);
+  const activeSectionChildren = useMemo(() => {
+    if (!activeSectionSchema?.id) return [];
+    return schema
+      .filter(s => s.parentId === activeSectionSchema.id)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [schema, activeSectionSchema]);
+  const activeSectionHasBlocks = (activeSectionSchema?.blocks || []).length > 0;
+  const showSubsectionPrompt = !!activeSectionSchema && !activeSectionHasBlocks && activeSectionChildren.length > 0;
 
   useEffect(() => {
     if (!activeSectionSchema) return;
@@ -562,6 +570,15 @@ export default function IMWorkspace() {
           ) : !activeSectionSchema ? (
             <div style={{ color: T.textMuted, fontSize: 14, textAlign: 'center', marginTop: 80 }}>
               Select a section from the sidebar to begin.
+            </div>
+          ) : showSubsectionPrompt ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '52vh', gap: 10, textAlign: 'center' }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: T.text }}>
+                {activeSectionSchema.heading || activeSectionSchema.navLabel}
+              </div>
+              <div style={{ maxWidth: 420, fontSize: 13, color: T.textMuted, lineHeight: 1.6 }}>
+                This section has only subsections. Choose a subsection from the left sidebar to continue.
+              </div>
             </div>
           ) : (
             <div style={{

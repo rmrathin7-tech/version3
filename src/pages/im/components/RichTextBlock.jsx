@@ -7,7 +7,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 import {
   MessageSquarePlus, Table2, Trash2, Plus,
   ArrowDown, ArrowRight, X, Maximize2, Minimize2,
-  FileText, Hash, AlignLeft, CheckSquare, Save
+  FileText, Hash, AlignLeft, CheckSquare, Save, Info
 } from 'lucide-react';
 
 const storage = getStorage();
@@ -280,7 +280,7 @@ function FullscreenEditor({ block, value, onChange, onClose, onFocus, onBlur }) 
     if (!paperRef.current || !toolbarRef.current || quillRef.current) return;
     quillRef.current = new Quill(paperRef.current, {
       theme: 'snow',
-      placeholder: block.placeholder || block.desc || 'Start writing…',
+      placeholder: block.showPlaceholderAsGuide ? '' : (block.placeholder || block.desc || 'Start writing…'),
       modules: {
         table: true,
         toolbar: {
@@ -546,6 +546,9 @@ export default function RichTextBlock({
 
   const [isFocused,  setIsFocused]  = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const placeholderText = block.placeholder || block.desc || '';
+  const usePlaceholderGuide = !!block.showPlaceholderAsGuide && !!placeholderText;
+  const [showPlaceholderGuide, setShowPlaceholderGuide] = useState(usePlaceholderGuide);
 
   const t = {
     bg:            isDark ? '#0d1117'                : '#ffffff',
@@ -558,6 +561,10 @@ export default function RichTextBlock({
     subBarBg:      isDark ? '#1f242c'                : '#eff6ff',
     tableBorder:   isDark ? '#64748b'                : '#cbd5e1',
   };
+
+  useEffect(() => {
+    setShowPlaceholderGuide(usePlaceholderGuide);
+  }, [block.id, usePlaceholderGuide, placeholderText]);
 
   // ── COMMENT HELPERS ────────────────────────────────────────────────────────
   const showBubble = useCallback((rect, range) => {
@@ -618,7 +625,7 @@ export default function RichTextBlock({
 
     quillInstance.current = new Quill(editorRef.current, {
       theme: 'snow',
-      placeholder: block.placeholder || block.desc || 'Start writing…',
+      placeholder: usePlaceholderGuide ? '' : (placeholderText || 'Start writing…'),
       modules: {
         table: true,
         toolbar: { container: toolbarRef.current, handlers: { image: imageUploadHandler } },
@@ -697,6 +704,24 @@ export default function RichTextBlock({
   return (
     <BlockWrapper block={block} lockedBy={lockedBy} isDark={isDark}>
      
+
+      {usePlaceholderGuide && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <button
+              onClick={() => setShowPlaceholderGuide(p => !p)}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: t.accent, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <Info size={12} /> {showPlaceholderGuide ? 'Hide Guide' : 'Show Guide'}
+            </button>
+          </div>
+          {showPlaceholderGuide && (
+            <div style={{ padding: '10px 14px', borderRadius: 6, fontSize: 12, color: t.text, background: t.toolbarBg, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5 }}>
+              {placeholderText}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden', background: t.bg }}>
 

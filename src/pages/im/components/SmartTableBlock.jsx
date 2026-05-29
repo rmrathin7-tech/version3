@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Trash2, Copy, Clipboard } from 'lucide-react';
+import { Plus, Trash2, Copy, Clipboard, Info } from 'lucide-react';
 import BlockWrapper from './BlockWrapper';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
@@ -344,6 +344,7 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
   const [isFocused, setIsFocused]             = useState(false);
   const isFocusedRef                          = useRef(false);
   const [customValues, setCustomValues]       = useState({});
+  const [hiddenGuides, setHiddenGuides]       = useState({});
   const [sideHeadings, setSideHeadings]       = useState([]);
   const typingTimeout                          = useRef(null);
 
@@ -862,6 +863,26 @@ export default function SmartTableBlock({ block, value, onChange, lockedBy, onFo
 
   // ── UNIFIED RICH CELL RENDERING ───────────────────────────────────────────
   const renderCellContent = useCallback((cell, val, onValChange, rIdx, isProtectedRow = false, tableInstanceId = 'main', contextRows = records) => {
+    const cellPlaceholder = cell.placeholder || '';
+    const usePlaceholderGuide = !!cell.showPlaceholderAsGuide && !!cellPlaceholder;
+    const guideKey = `${tableInstanceId}_${rIdx}_${cell.id}`;
+    const isGuideVisible = usePlaceholderGuide && !hiddenGuides[guideKey];
+    const guideToggle = usePlaceholderGuide ? (
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          onClick={() => setHiddenGuides(prev => ({ ...prev, [guideKey]: !prev[guideKey] }))}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: t.accent, fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: '2px 0' }}
+        >
+          <Info size={11} /> {isGuideVisible ? 'Hide Guide' : 'Show Guide'}
+        </button>
+      </div>
+    ) : null;
+    const guidePanel = isGuideVisible ? (
+      <div style={{ padding: '6px 8px', borderRadius: 6, fontSize: 11, color: t.text, background: t.headerBg, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5 }}>
+        {cellPlaceholder}
+      </div>
+    ) : null;
+
     switch (cell.cellType) {
       case 'fixed':
         return <div style={{ padding: '8px 10px', color: t.fixedText, fontSize: '0.8rem', fontWeight: 700, height: '100%', display: 'flex', alignItems: 'center' }}>{cell.text || ''}</div>;
@@ -976,8 +997,24 @@ case 'smart-select': {
       case 'input':
       default: {
         const iType = cell.inputType || 'text';
-        if (iType === 'quill') return <TableQuillEditor val={val} onChange={newVal => onValChange(newVal)} disabled={isProtectedRow || !!lockedBy} placeholder={cell.placeholder} block={block} t={t} focusHandlers={focusHandlers} isDark={isDark} />;
-        if (iType === 'textarea') return <AutoResizeTextarea val={val} onChange={e => onValChange(e.target.value)} disabled={isProtectedRow || !!lockedBy} placeholder={cell.placeholder} cellInputStyle={cellInputStyle} focusHandlers={focusHandlers} />;
+        if (iType === 'quill') {
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 6px' }}>
+              {guideToggle}
+              {guidePanel}
+              <TableQuillEditor val={val} onChange={newVal => onValChange(newVal)} disabled={isProtectedRow || !!lockedBy} placeholder={usePlaceholderGuide ? '' : cellPlaceholder} block={block} t={t} focusHandlers={focusHandlers} isDark={isDark} />
+            </div>
+          );
+        }
+        if (iType === 'textarea') {
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 6px' }}>
+              {guideToggle}
+              {guidePanel}
+              <AutoResizeTextarea val={val} onChange={e => onValChange(e.target.value)} disabled={isProtectedRow || !!lockedBy} placeholder={usePlaceholderGuide ? '' : cellPlaceholder} cellInputStyle={cellInputStyle} focusHandlers={focusHandlers} />
+            </div>
+          );
+        }
         if (iType === 'select') {
           const customKey  = `${tableInstanceId}_${rIdx}_${cell.id}`;
           const isCustom   = val === '__custom__';
@@ -990,7 +1027,7 @@ case 'smart-select': {
                 disabled={isProtectedRow || !!lockedBy}
                 style={{ ...cellInputStyle, cursor: 'pointer', backgroundColor: isDark ? '#0f172a' : '#ffffff', colorScheme: isDark ? 'dark' : 'light' }}
                 {...focusHandlers}>
-                <option value="" style={optionStyle}>{cell.placeholder || 'Select…'}</option>
+                <option value="" style={optionStyle}>{usePlaceholderGuide ? 'Select…' : (cellPlaceholder || 'Select…')}</option>
                 {(cell.selectOptions || []).map(opt => <option key={opt} value={opt} style={optionStyle}>{opt}</option>)}
                 {cell.allowCustom && <option value="__custom__" style={optionStyle}>Other (specify)</option>}
                 {block.allowNA && <option value="N/A" style={optionStyle}>N/A</option>}
@@ -1007,23 +1044,27 @@ case 'smart-select': {
         const showPrefix = iType === 'currency';
         const showSuffix = iType === 'percentage';
         return (
-          <div style={{ display: 'flex', alignItems: 'center', width: '100%', height: '100%' }}>
-            {showPrefix && <span style={{ padding: '0 4px 0 10px', color: t.textMuted, fontSize: '0.8rem' }}>₹</span>}
-            <input
-              type={iType === 'currency' || iType === 'percentage' || iType === 'number' ? 'number' : (iType === 'lang' || iType === 'date' ? 'date' : undefined)}
-              value={val}
-              onChange={e => onValChange(e.target.value)}
-              disabled={isProtectedRow || !!lockedBy}
-              placeholder={cell.placeholder}
-              style={{ ...cellInputStyle, paddingLeft: showPrefix ? '2px' : '10px', colorScheme: isDark ? 'dark' : 'light' }}
-              {...focusHandlers}
-            />
-            {showSuffix && <span style={{ padding: '0 10px 0 2px', color: t.textMuted, fontSize: '0.8rem' }}>%</span>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 6px' }}>
+            {guideToggle}
+            {guidePanel}
+            <div style={{ display: 'flex', alignItems: 'center', width: '100%', height: '100%' }}>
+              {showPrefix && <span style={{ padding: '0 4px 0 10px', color: t.textMuted, fontSize: '0.8rem' }}>₹</span>}
+              <input
+                type={iType === 'currency' || iType === 'percentage' || iType === 'number' ? 'number' : (iType === 'lang' || iType === 'date' ? 'date' : undefined)}
+                value={val}
+                onChange={e => onValChange(e.target.value)}
+                disabled={isProtectedRow || !!lockedBy}
+                placeholder={usePlaceholderGuide ? '' : cellPlaceholder}
+                style={{ ...cellInputStyle, paddingLeft: showPrefix ? '2px' : '10px', colorScheme: isDark ? 'dark' : 'light' }}
+                {...focusHandlers}
+              />
+              {showSuffix && <span style={{ padding: '0 10px 0 2px', color: t.textMuted, fontSize: '0.8rem' }}>%</span>}
+            </div>
           </div>
         );
       }
     }
-  }, [records, runtimeSchemaRows, t, lockedBy, isDark, block, cellInputStyle, customValues, onFocus, onBlur, evaluateFormula]);
+  }, [records, runtimeSchemaRows, t, lockedBy, isDark, block, cellInputStyle, customValues, hiddenGuides, onFocus, onBlur, evaluateFormula]);
 
   const colTotals = useMemo(() => {
     if (!block.showColumnTotals && !block.hasTotalsRow) return null;

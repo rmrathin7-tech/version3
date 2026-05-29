@@ -43,7 +43,9 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
   const [isFocused, setIsFocused] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState(Array.isArray(value) ? value : []);
-  const [showFullPlaceholder, setShowFullPlaceholder] = useState(false); // NEW STATE
+  const placeholderText = block.placeholder || block.desc || '';
+  const usePlaceholderGuide = !!block.showPlaceholderAsGuide && !!placeholderText;
+  const [showFullPlaceholder, setShowFullPlaceholder] = useState(usePlaceholderGuide);
   const typingTimeout = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -110,6 +112,10 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
       setLocalValue(value ?? '');
     }
   }, [value, isFocused, isUploading, block.type]);
+
+  useEffect(() => {
+    setShowFullPlaceholder(usePlaceholderGuide);
+  }, [block.id, usePlaceholderGuide, placeholderText]);
 
   // ── DEBOUNCED SAVE ──────────────────────────────────────────────────────
   const debouncedSave = useCallback((val) => {
@@ -199,7 +205,7 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
 
   // ── RENDER ──────────────────────────────────────────────────────────────
   const renderInput = () => {
-
+const effectivePlaceholder = usePlaceholderGuide ? '' : placeholderText;
 // 1. INSTRUCTION block — read-only note
     if (block.type === 'instruction') {
       return (
@@ -366,7 +372,7 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
       return (
         <select value={localValue} onChange={handleChange} onFocus={handleFocus} onBlur={handleBlur}
           style={{ ...inputStyle, color: localValue ? t.text : t.textMuted, cursor: 'pointer' }}>
-          <option value="">{block.placeholder || 'Select an option'}</option>
+          <option value="">{effectivePlaceholder || 'Select an option'}</option>
           {(block.options || []).map(opt => (
             <option key={opt} value={opt} style={{ background: isDark ? '#1f2937' : '#fff', color: t.text }}>{opt}</option>
           ))}
@@ -378,7 +384,7 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
     if (block.type === 'textarea') {
       return (
         <textarea value={localValue} onChange={handleChange} onFocus={handleFocus} onBlur={handleBlur}
-          placeholder={block.placeholder} rows={block.rows || 4}
+          placeholder={effectivePlaceholder} rows={block.rows || 4}
           style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} />
       );
     }
@@ -391,7 +397,7 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
         <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
           {prefix && <span style={{ padding: '12px 12px', background: t.surface, border: `1px solid ${t.border}`, borderRight: 'none', borderRadius: '8px 0 0 8px', color: t.textMuted, fontSize: '0.9rem', fontWeight: 600 }}>{prefix}</span>}
           <input type="number" value={localValue} onChange={handleChange} onFocus={handleFocus} onBlur={handleBlur}
-            placeholder={block.placeholder || '0'}
+            placeholder={effectivePlaceholder || '0'}
             style={{ ...inputStyle, borderRadius: prefix ? '0 8px 8px 0' : suffix ? '8px 0 0 8px' : '8px', borderLeft: prefix ? 'none' : `1px solid ${t.border}`, borderRight: suffix ? 'none' : `1px solid ${t.border}` }} />
           {suffix && <span style={{ padding: '12px 12px', background: t.surface, border: `1px solid ${t.border}`, borderLeft: 'none', borderRadius: '0 8px 8px 0', color: t.textMuted, fontSize: '0.9rem', fontWeight: 600 }}>{suffix}</span>}
         </div>
@@ -470,7 +476,7 @@ export default function BasicInputBlock({ block, value, onChange, lockedBy, onFo
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        placeholder={block.placeholder}
+        placeholder={effectivePlaceholder}
         style={inputStyle}
       />
     );
@@ -481,7 +487,7 @@ return (
       <div style={{ marginBottom: 4 }}>
         
         {/* Toggle Button for Long Placeholders */}
-        {block.placeholder && block.placeholder.length > 50 && (
+        {usePlaceholderGuide && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
             <button 
               onClick={() => setShowFullPlaceholder(!showFullPlaceholder)}
@@ -496,9 +502,9 @@ return (
         {renderInput()}
 
         {/* The Revealable Placeholder Guide */}
-        {showFullPlaceholder && (
+        {usePlaceholderGuide && showFullPlaceholder && (
           <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 6, fontSize: 12, color: t.text, background: t.surface, borderLeft: `3px solid ${t.accent}`, lineHeight: 1.5 }}>
-            {block.placeholder}
+            {placeholderText}
           </div>
         )}
 
